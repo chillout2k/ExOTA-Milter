@@ -34,7 +34,6 @@ class ExOTAMilter(Milter.Base):
     self.hdr_from = None
     self.hdr_from_domain = None
     self.hdr_tenant_id = None
-    self.tenant_id_valid = False
     self.dkim_results = []
     self.dkim_valid = False
     # https://stackoverflow.com/a/2257449
@@ -167,7 +166,7 @@ class ExOTAMilter(Milter.Base):
       return Milter.REJECT
 
     if g_milter_dkim_enabled == True and g_milter_policy[self.hdr_from_domain]['dkim'] == True:
-      logging.info(self.mconn_id + "/" + self.queue_id +
+      logging.debug(self.mconn_id + "/" + self.queue_id +
         "/EOM: 5322.from_domain={0} dkim_auth=enabled".format(self.hdr_from_domain)
       )
       if len(self.dkim_results) > 0:
@@ -180,7 +179,7 @@ class ExOTAMilter(Milter.Base):
             )
             if dkim_result['result'] == 'pass':
               logging.info(self.mconn_id + "/" + self.queue_id +
-                "/EOM: 5322.from_domain={0} selector={1} result=pass".format(
+                "/EOM: 5322.from_domain={0} dkim_selector={1} result=pass".format(
                   self.hdr_from_domain, dkim_result['selector']
                 )
               )
@@ -188,7 +187,7 @@ class ExOTAMilter(Milter.Base):
               continue
             else:
               logging.info(self.mconn_id + "/" + self.queue_id +
-                "/EOM: 5322.from_domain={0} selector={1} result=fail".format(
+                "/EOM: 5322.from_domain={0} dkim_selector={1} result=fail".format(
                   self.hdr_from_domain, dkim_result['selector']
                 )
               )
@@ -204,6 +203,12 @@ class ExOTAMilter(Milter.Base):
         )
         self.setreply('550','5.7.1', g_milter_reject_message)
         return Milter.REJECT
+        
+    logging.info(self.mconn_id + "/" + self.queue_id +
+      "/EOM: Authentication successful (dkim_enabled={0})".format(
+        str(g_milter_policy[self.hdr_from_domain]['dkim'])
+      )
+    )
     return Milter.CONTINUE
 
   def abort(self):

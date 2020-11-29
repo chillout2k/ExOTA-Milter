@@ -14,4 +14,4 @@ export MILTER_DKIM_AUTHSERVID=my-auth-serv-id
 First of all install the `miltertest` binary. Under debian based distros 
 it´s located in the `opendkim-tools` package.
 
-`miltertest -v -D socket=/tmp/exota-milter -s tests/miltertest.lua`
+`miltertest -v -D socket="${MILTER_SOCKET}" -s tests/miltertest.lua`
