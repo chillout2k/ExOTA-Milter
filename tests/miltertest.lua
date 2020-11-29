@@ -33,6 +33,9 @@ end
 if mt.header(conn, "X-MS-Exchange-CrossTenant-Id", "1234abcd-18c5-45e8-88de-123456789abc") ~= nil then
   error "mt.header(Subject) failed"  
 end
+--if mt.header(conn, "X-MS-Exchange-CrossTenant-Id", "4321abcd-18c5-45e8-88de-blahblubb") ~= nil then
+--  error "mt.header(Subject) failed"  
+--end
 if mt.header(conn, "Authentication-Results", "another-wrong-auth-serv-id;\n  dkim=fail header.d=lalalulu.onmicrosoft.com header.s=selector1-lalalulu-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
   error "mt.header(Subject) failed"  
 end

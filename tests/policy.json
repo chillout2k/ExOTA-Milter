@@ -2,5 +2,9 @@
   "lalalulu.onmicrosoft.com": {
     "tenant_id": "1234abcd-18c5-45e8-88de-123456789abc",
     "dkim": true
+  },
+  "asdf2.onmicrosoft.com": {
+    "tenant_id": "asdftasdfa",
+    "dkim": true
   }
 }

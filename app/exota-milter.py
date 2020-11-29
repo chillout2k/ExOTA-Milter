@@ -9,6 +9,10 @@ import re
 import email.utils
 import authres
 import json
+from policy import (
+  ExOTAPolicyException, ExOTAPolicyNotFoundException, 
+  ExOTAPolicyBackendJSON, ExOTAPolicy
+)
 
 # Globals with mostly senseless defaults ;)
 g_milter_name = 'exota-milter'
@@ -21,7 +25,7 @@ g_milter_dkim_enabled = False
 g_milter_dkim_authservid = 'invalid'
 g_milter_policy_source = 'file' # file, ldap, etc.
 g_milter_policy_file = 'invalid'
-g_milter_policy = {}
+g_milter_policy_backend = None
 
 class ExOTAMilter(Milter.Base):
   # Each new connection is handled in an own thread
@@ -34,6 +38,7 @@ class ExOTAMilter(Milter.Base):
     self.hdr_from = None
     self.hdr_from_domain = None
     self.hdr_tenant_id = None
+    self.hdr_tenant_id_count = 0
     self.dkim_results = []
     self.dkim_valid = False
     # https://stackoverflow.com/a/2257449
@@ -79,6 +84,8 @@ class ExOTAMilter(Milter.Base):
     logging.debug(self.mconn_id + "/" + str(self.queue_id) +
       "/HEADER Header: {0}, Value: {1}".format(name, hval)
     )
+
+    # Parse RFC-5322-From header
     if(name == "From"):
       hdr_5322_from = email.utils.parseaddr(hval)
       self.hdr_from = hdr_5322_from[1].lower()
@@ -93,11 +100,16 @@ class ExOTAMilter(Milter.Base):
       logging.debug(self.mconn_id + "/" + str(self.queue_id) +
         "/HEADER 5322.from: {0}, 5322.from_domain: {1}".format(self.hdr_from, self.hdr_from_domain)
       )
+
+    # Parse non-standardized X-MS-Exchange-CrossTenant-Id header
     elif(name == "X-MS-Exchange-CrossTenant-Id"):
+      self.hdr_tenant_id_count += 1
       self.hdr_tenant_id = hval.lower()
       logging.debug(self.mconn_id + "/" + str(self.queue_id) +
         "/HEADER Tenant-ID: {0}".format(self.hdr_tenant_id)
       )
+
+    # Parse RFC-7601 Authentication-Results header
     elif(name == "Authentication-Results"):
       if g_milter_dkim_enabled == True:
         ar = None
@@ -141,11 +153,19 @@ class ExOTAMilter(Milter.Base):
       )
       self.setreply('550','5.7.1', g_milter_tmpfail_message)
       return Milter.REJECT
-    if self.hdr_from_domain not in g_milter_policy:
-      logging.error(self.mconn_id  + "/" + str(self.queue_id) + "/EOM " +
-        "Could not find 5322.from_domain {0} in policy!".format(self.hdr_from_domain)
+
+    # Get policy for 5322.from_domain
+    policy = None
+    try:
+      policy = g_milter_policy_backend.get(self.hdr_from_domain)
+      logging.debug(self.mconn_id + "/" + self.queue_id +
+        "/EOM Policy for 5322.from_domain={0} fetched from backend".format(self.hdr_from_domain)
       )
-      self.setreply('550','5.7.1', g_milter_reject_message)
+    except (ExOTAPolicyException, ExOTAPolicyNotFoundException) as e:
+      logging.info(self.mconn_id + "/" + self.queue_id +
+        "/EOM {0}".format(e.message)
+      )
+      self.setreply('550','5.7.1', g_milter_tmpfail_message)
       return Milter.REJECT
 
     if self.hdr_tenant_id is None:
@@ -154,18 +174,28 @@ class ExOTAMilter(Milter.Base):
       )
       self.setreply('550','5.7.1', g_milter_reject_message)
       return Milter.REJECT
-    if self.hdr_tenant_id == g_milter_policy[self.hdr_from_domain]['tenant_id'].lower():
+    if self.hdr_tenant_id_count > 1:
       logging.info(self.mconn_id + "/" + self.queue_id +
-        "/EOM: 5322.from_domain={1} tenant_id={0} status=match".format(self.hdr_tenant_id, self.hdr_from_domain)
+        "/EOM: More than one tenant-IDs for {0} found!".format(self.hdr_from_domain)
+      )
+      self.setreply('550','5.7.1', g_milter_reject_message)
+      return Milter.REJECT
+    if self.hdr_tenant_id == policy.get_tenant_id():
+      logging.info(self.mconn_id + "/" + self.queue_id +
+        "/EOM: 5322.from_domain={0} tenant_id={1} status=match".format(
+          self.hdr_from_domain, self.hdr_tenant_id
+        )
       )
     else:
       logging.error(self.mconn_id + "/" + self.queue_id +
-        "/EOM: 5322.from_domain={1} tenant_id={0} status=no_match".format(self.hdr_tenant_id, self.hdr_from_domain)
+        "/EOM: 5322.from_domain={0} tenant_id={1} status=no_match".format(
+          self.hdr_from_domain, self.hdr_tenant_id
+        )
       )
       self.setreply('550','5.7.1', g_milter_reject_message)
       return Milter.REJECT
 
-    if g_milter_dkim_enabled == True and g_milter_policy[self.hdr_from_domain]['dkim'] == True:
+    if g_milter_dkim_enabled and policy.is_dkim_enabled():
       logging.debug(self.mconn_id + "/" + self.queue_id +
         "/EOM: 5322.from_domain={0} dkim_auth=enabled".format(self.hdr_from_domain)
       )
@@ -206,7 +236,7 @@ class ExOTAMilter(Milter.Base):
         
     logging.info(self.mconn_id + "/" + self.queue_id +
       "/EOM: Authentication successful (dkim_enabled={0})".format(
-        str(g_milter_policy[self.hdr_from_domain]['dkim'])
+        str(policy.is_dkim_enabled())
       )
     )
     return Milter.CONTINUE
@@ -260,12 +290,10 @@ if __name__ == "__main__":
     if 'MILTER_POLICY_FILE' in os.environ:
       g_milter_policy_file = os.environ['MILTER_POLICY_FILE']
       try:
-        with open(g_milter_policy_file, 'r') as policy_file:
-          g_milter_policy = json.load(policy_file)
-          policy_file.close()
-          logging.info("Successfully slurped policy file: {0}".format(g_milter_policy_file))
-      except:
-        logging.error("Error reading policy file: " + traceback.format_exc())
+        g_milter_policy_backend = ExOTAPolicyBackendJSON(g_milter_policy_file)
+        logging.info("JSON policy backend initialized")
+      except ExOTAPolicyException as e:
+        logging.error("Policy backend error: {0}".format(e.message))
         sys.exit(1)
     else:
       logging.error("ENV[MILTER_POLICY_FILE] is mandatory!")
