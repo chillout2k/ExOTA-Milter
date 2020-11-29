@@ -15,13 +15,13 @@ class ExOTAPolicyInvalidException(ExOTAPolicyException):
 class ExOTAPolicy():
   def __init__(self, policy_dict):
     self.tenant_id = policy_dict['tenant_id']
-    self.dkim = policy_dict['dkim']
+    self.dkim_enabled = policy_dict['dkim_enabled']
 
   def get_tenant_id(self):
     return self.tenant_id
 
   def is_dkim_enabled(self):
-    return self.dkim
+    return self.dkim_enabled
 
   @staticmethod
   def check_policy(policy_dict):
@@ -38,14 +38,14 @@ class ExOTAPolicy():
         raise ExOTAPolicyInvalidException(
           "'tenant_id' must not contain whitespace characters!"
         )
-    if 'dkim' not in policy_dict:
+    if 'dkim_enabled' not in policy_dict:
       raise ExOTAPolicyInvalidException(
-        "Policy must have a 'dkim' attribute!"
+        "Policy must have a 'dkim_enabled' attribute!"
       )
     else:
-      if not isinstance(policy_dict['dkim'], bool):
+      if not isinstance(policy_dict['dkim_enabled'], bool):
         raise ExOTAPolicyInvalidException(
-          "'dkim'({0}) must be boolean!".format(policy_dict['dkim'])
+          "'dkim_enabled'({0}) must be boolean!".format(policy_dict['dkim_enabled'])
         )
 
 class ExOTAPolicyBackend():

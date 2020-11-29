@@ -10,8 +10,8 @@ end
 mt.set_timeout(3)
 
 -- 5321.FROM + MACROS
-mt.macro(conn, SMFIC_MAIL, '{client_addr}', "127.128.129.130", "i", "4CgSNs5Q9sz7SllQ")
-if mt.mailfrom(conn, "dominik@dc-it-con.de") ~= nil then
+mt.macro(conn, SMFIC_MAIL, '{client_addr}', "127.128.129.130", "i", "4CgSNs5Q9sz7SllQ", '{cert_subject}', "mail.protection.outlook.com")
+if mt.mailfrom(conn, "envelope.sender@example.org") ~= nil then
   error "mt.mailfrom() failed"
 end
 if mt.getreply(conn) ~= SMFIR_CONTINUE then
@@ -19,7 +19,7 @@ if mt.getreply(conn) ~= SMFIR_CONTINUE then
 end
 
 -- 5321.RCPT
-if mt.rcptto(conn, "<info@dc-it-con.de>") ~= nil then
+if mt.rcptto(conn, "<envelope.recipient@example.com>") ~= nil then
   error "mt.rcptto() failed"
 end
 if mt.getreply(conn) ~= SMFIR_CONTINUE then
@@ -43,6 +43,9 @@ if mt.header(conn, "Authentication-Results", "wrong-auth-serv-id;\n  dkim=pass h
   error "mt.header(Subject) failed"  
 end
 if mt.header(conn, "Authentication-Results", "my-auth-serv-id;\n  dkim=pass header.d=lalalulu.onmicrosoft.com header.s=selector1-lalalulu-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
+  error "mt.header(Subject) failed"  
+end
+if mt.header(conn, "Authentication-Results", "my-auth-serv-id;\n  dkim=fail header.d=lalalulu.onmicrosoft.com header.s=selector2-asdf header.b=mmmjFpv8") ~= nil then
   error "mt.header(Subject) failed"  
 end
 if mt.header(conn, "Authentication-Results", "some-validating-host;\n dkim=pass header.d=paypal.de header.s=pp-dkim1 header.b=PmTtUzer;\n dmarc=pass (policy=reject) header.from=paypal.de;\n spf=pass (some-validating-host: domain of service@paypal.de designates 173.0.84.226 as permitted sender) smtp.mailfrom=service@paypal.de") ~= nil then
