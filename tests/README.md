@@ -6,7 +6,7 @@ First of all, please configure a python virtual environment and install all nece
 
 It´s not realy neccessary to configure a fully functional milter-aware MTA to see **ExOTA-Milter** in action. All you need is 
 * a binary called `miltertest`. Under debian based distros it´s located in the `opendkim-tools` package.
-* a lua-script for miltertest: `tests/miltertest.lue`
+* a lua-script for miltertest: `tests/miltertest.lua`
 * an **ExOTA-Milter** policy JSON-file: `tests/policy.json`
 
 Except for the `miltertest` binary you´ll find all mandatory resources to run a test in this repo.
