@@ -1,0 +1,64 @@
+Return-Path: <>
+Received: from DEU01-FR2-obe.outbound.protection.outlook.com (mail-fr2deu01lp2173.outbound.protection.outlook.com [104.47.11.173])
+	(using TLSv1.2 with cipher ECDHE-ECDSA-AES256-GCM-SHA384 (256/256 bits))
+	(Client CN "mail.protection.outlook.com", Issuer "GlobalSign Organization Validation CA - SHA256 - G3" (verified OK))
+	by outbound.connector.blahblubb.de (Postfix) with ESMTPS id 4CjqCQ2WRCzGjg6
+	for <some.recipient@example.org>; Sat, 28 Nov 2020 12:34:26 +0100 (CET)
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=RuGSfIN1OzQHDqrF0erLAHZ3fyhtmoE5Sllj+Qp6CtbcNUkkmdhR44b8capz/J1mBpyb13udY1mhkPZCK1Cmt+mpg9yFXgkv5BxY+dV9647Fq+MboUE60Psn84d4vXFvyrWDrFW1jWZi7/NdXhjLcCqTHpAzDaRfAOfGhG/VWYJAXnD/EBpCzPfd8hh9ZOONI2UN2HQfRnx0P3WXyeVSGilP4RGPdmcCZV5ZzpjlQoKUshjq293+ZltXaeKfF/LHGX0yScHhKO2f9O+qY3hnH0P+NGwFvhIky3IyszfxpANaJnz2Jpp0sK1W16rwGSTI2gl9bpJsj+wzKLGkJV75+Q==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=KWHUKEKZxeQyFbKe45TV1PJMC2XrVCMTFkdwSYWR6o0=;
+ b=go8dFv6srV3NnETxQxaANld1if9BOsIgrhjefC4WkRrrgwEjZSNnm9DyO+GC2ZZo60At5JHOVLjqN9kjz2pFdAG0qnFEj3Wx/6NnuTfBUk0n4s32RoFuhADu8BC+aOU9Ec909uu2QQ9ucEMiVSjuyQ3QpGS5DR0yCAZLZ12B61hmoMgkXJ9ah6rluUV4GeMGKTsUn16u6mrJycXp0OoD4n19JomPpQo5o8gouK3Zz4F7DxX4lshNJ+VCsOznqS+FI4rQ2LSyU8Y0AZa9clyCSN94AJa6K0TiDgQ/gLZEWsZ1tZkgPrdMlyqi58ONW/dNQ7lyrEFz6deB4YmsusJPbQ==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=none; dmarc=none
+ action=none header.from=lalalulu.onmicrosoft.com; dkim=none (message not
+ signed); arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=lalalulu.onmicrosoft.com; s=selector1-lalalulu-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=KWHUKEKZxeQyFbKe45TV1PJMC2XrVCMTFkdwSYWR6o0=;
+ b=DYTLJtLFjvVrSZtZQagTwuEe5PQYqrNGi7hR5bkhO+GYUV4dcQZnDO4hAPzJkOWhz8JCVJ+/yt5K8L/exegk80g9m0GJjZzJBxMy0ZE/7wg8yqiHNE+iQqWhJLtwsD23kx2+09G5dBSDI1QVqFKkL0YKBWVffSuXi+tjM4/BztffZ7ok7XZdKCFfKzK3TLdiAWYTRIp1214zdnIE0CLBhnOIWC4gnML2fXsVZsWb/CMgaW0vBsZGI/yaSivaNFPZloSb0/sEnMFMEbv2GXt9mN913M0thwCi/+NLwzaW6TNlw2Vz7l4SGRVvciGaa4s2sFnJ0ANMD2u5qBbJ8j8Z0w==
+Authentication-Results: blahblubb.de; dkim=none (message not signed)
+ header.d=none;blahblubb.de; dmarc=none action=none
+ header.from=lalalulu.onmicrosoft.com;
+Received: from AM6P193CA0087.EURP193.PROD.OUTLOOK.COM (2603:10a6:209:88::28)
+ by BEXP281MB0216.DEUP281.PROD.OUTLOOK.COM (2603:10a6:b10:6::12) with
+ Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.3632.6; Sat, 28 Nov
+ 2020 11:34:25 +0000
+Received: from BE0P281MB0257.DEUP281.PROD.OUTLOOK.COM
+ (2603:10a6:209:88:cafe::a2) by AM6P193CA0087.outlook.office365.com
+ (2603:10a6:209:88::28) with Microsoft SMTP Server (version=TLS1_2,
+ cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.3611.20 via Frontend
+ Transport; Sat, 28 Nov 2020 11:34:24 +0000
+From: O365ConnectorValidation@lalalulu.onmicrosoft.com
+Date: Sat, 28 Nov 2020 11:34:24 +0000
+Message-Id: <b6d9c673-d0f3-4538-bb4e-9e099fb9a388@substrate-int.office.com>
+To: some.recipient@example.org
+Subject: Test email for connector validation
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+X-MS-PublicTrafficType: Email
+X-MS-Office365-Filtering-Correlation-Id: abcd1234-abcd-471a-1234-08d893918edd
+X-MS-TrafficTypeDiagnostic: BEXP281MB0216:
+X-Microsoft-Antispam-PRVS:
+	<BEXP281MB021624EF3E3FC35524889C2AB8F70@BEXP281MB0216.DEUP281.PROD.OUTLOOK.COM>
+X-MS-Oob-TLC-OOBClassifiers: OLM:2733;
+X-MS-Exchange-SenderADCheck: 1
+X-Microsoft-Antispam: BCL:0;
+X-Microsoft-Antispam-Message-Info:
+	P2dut4iALZ4EsHFmDE6p0OBg/Q4PvbmhUGI6BnGbHo/u7Vza6tyXE6BPK0VrJQ8WnCYXNx7lEKtiZs8nakJ9EghgxvFRNuYyRBJcGAdlN2TJAb2/7Wp5m7vzuGp1JJhES0RC/hypLDL8miRoP1xYl/pQHZVUGczSddujsZT6im0EgDJvAB0L1vzyKvZJ1QH3vTWDKMAgetlQHiPvCfzZmUgY92g1+sfF9UwGTRXDj8cd83H+TLI7GL8kZF1H219l+DLDiZ3u+qUdprwMn9XDEBljZpczY8BhiFdmnbyJ26ePVNa5JluRboz2Gfaa6GZE+ar8FyKtepxFOyNlI+hyL/vcWNwmnjL+pyYFVPPHnODjxu8JixWg00ThTUiZbclJ
+X-Forefront-Antispam-Report:
+	CIP:255.255.255.255;CTRY:;LANG:en;SCL:1;SRV:;IPV:NLI;SFV:NSPM;H:BE0P281MB0257.DEUP281.PROD.OUTLOOK.COM;PTR:;CAT:NONE;SFS:(376002)(346002)(39830400003)(34036004)(366004)(396003)(136003)(31686004)(78352004)(6916009)(508600001)(5660300002)(42882007)(2906002)(8936002)(558084003)(31696002)(17440700003)(316002)(9686003)(85236043)(68406010)(8676002)(83380400001)(16130700016)(100380200003)(20230700015);DIR:OUT;SFP:1501;
+X-OriginatorOrg: lalalulu.onmicrosoft.com
+X-MS-Exchange-CrossTenant-OriginalArrivalTime: 28 Nov 2020 11:34:24.7460
+ (UTC)
+X-MS-Exchange-CrossTenant-Network-Message-Id: abcd1234-abcd-471a-1234-08d893918edd
+X-MS-Exchange-CrossTenant-AuthSource: AM6P193CA0087.EURP193.PROD.OUTLOOK.COM
+X-MS-Exchange-CrossTenant-AuthAs: Internal
+X-MS-Exchange-CrossTenant-Id: 1234abcd-18c5-45e8-88de-123456789abc
+X-MS-Exchange-CrossTenant-FromEntityHeader: Internet
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BEXP281MB0216
+
+This test email message was sent from Office 365 to check that email can be delivered to you using your new or modified connector. No need to reply.
