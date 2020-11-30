@@ -3,7 +3,10 @@
 The **ExOTA-[Milter](https://en.wikipedia.org/wiki/Milter)** application is written in python3 and derives from **[sdgathman´s pymilter](https://github.com/sdgathman/pymilter)**.
 
 # Synopsis
+TODO
 
+# Table of contents
+TODO
 
 # Abstract/problem/motivation
 Fact is that more and more companies are migrating their Outlook/Exchange environments to the [Microsoft cloud](https://www.microsoft.com/microsoft-365).
@@ -73,13 +76,23 @@ Authentication-Results: trusted.dkim.validating.relay;  dkim=pass header.d=tenan
 [...]
 ```
 
-## X-MS-Exchange-CrossTenant-Id header
-Further each Microsoft Exchange-Online tenant has a unique tenant-ID in form of a UUID ([RFC 4122](https://tools.ietf.org/html/rfc4122)). **ExOTA-Milter** determines the tenant-ID from the *X-MS-Exchange-CrossTenant-Id* email header and uses it as a *mandatory* authentication factor.
+## X-MS-Exchange-CrossTenant-Id header (policy binding)
+Further each Microsoft Exchange-Online tenant has a unique tenant-ID in form of a UUID ([RFC 4122](https://tools.ietf.org/html/rfc4122)). **ExOTA-Milter** extracts the tenant-ID from the *X-MS-Exchange-CrossTenant-Id* email header and uses it as a *mandatory* authentication factor.
 ```
 [...]
 X-MS-Exchange-CrossTenant-Id: <UUID-of-tenant>
 [...]
 ```
+At last the **ExOTA-Milter** needs an additional policy (JSON file), that provides a mapping of *sender-domain <-> tenant-id* and if DKIM-signatures must be taken under consideration or not. The JSON policy file itself looks like this:
+```
+{
+  "lalalulu.onmicrosoft.com": {
+    "tenant_id": "1234abcd-18c5-45e8-88de-123456789abc",
+    "dkim_enabled": true
+  }
+}
+```
+Actually I´m also working on a LDAP-based version as policy backend.
 
 # The solution
 So, *how can an Exchange-Online user/tenant be identified by a third party smarthost?*
@@ -114,7 +127,7 @@ Prerequisites: `docker-compose` installed
   * `cd /docker/containers/exota-milter`
 * Create further directories in the deployment directory: 
   * `install -d -m 777 data`. The application expects the policy file in `/data/policy.json` (path inside the container!).
-  * `install -d -m 777 socket`. The application places the milter socket file under `/socket/exomilter-socket` (path inside the container!)
+  * `install -d -m 777 socket`. The application places the milter socket file under `/socket/exota-milter` (path inside the container!)
 * Create the policy file `data/policy.json` with following content:
 ```
 {
