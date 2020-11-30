@@ -14,20 +14,33 @@ from policy import (
   ExOTAPolicyBackendJSON, ExOTAPolicy
 )
 
-# Globals with mostly senseless defaults ;)
+# Globals with defaults. Can/should be modified by ENV-variables on startup.
+# ENV[MILTER_NAME]
 g_milter_name = 'exota-milter'
+# ENV[MILTER_SOCKET]
 g_milter_socket = '/socket/' + g_milter_name
+# ENV[MILTER_REJECT_MESSAGE]
 g_milter_reject_message = 'Security policy violation!'
+# ENV[MILTER_TMPFAIL_MESSAGE]
 g_milter_tmpfail_message = 'Service temporarily not available! Please try again later.'
-g_re_domain = re.compile(r'^.*@(\S+)$', re.IGNORECASE)
+# ENV[LOG_LEVEL]
 g_loglevel = logging.INFO
+# ENV[MILTER_DKIM_ENABLED]
 g_milter_dkim_enabled = False
+# ENV[MILTER_TRUSTED_AUTHSERVID]
 g_milter_trusted_authservid = 'invalid'
+# ENV[MILTER_POLICY_SOURCE]
 g_milter_policy_source = 'file'
-g_milter_policy_file = None
-g_milter_policy_backend = None
+# ENV[MILTER_POLICY_FILE]
+g_milter_policy_file = '/data/policy.json'
+# ENV[MILTER_X509_ENABLED]
 g_milter_x509_enabled = False
+# ENV[MILTER_X509_TRUSTED_CN]
 g_milter_x509_trusted_cn = 'mail.protection.outlook.com'
+
+# Another globals
+g_policy_backend = None
+g_re_domain = re.compile(r'^.*@(\S+)$', re.IGNORECASE)
 
 class ExOTAMilter(Milter.Base):
   # Each new connection is handled in an own thread
@@ -177,7 +190,7 @@ class ExOTAMilter(Milter.Base):
     # Get policy for 5322.from_domain
     policy = None
     try:
-      policy = g_milter_policy_backend.get(self.hdr_from_domain)
+      policy = g_policy_backend.get(self.hdr_from_domain)
       logging.debug(self.mconn_id + "/" + self.getsymval('i') +
         "/EOM Policy for 5322.from_domain={0} fetched from backend".format(self.hdr_from_domain)
       )
@@ -292,6 +305,7 @@ if __name__ == "__main__":
     g_milter_name = os.environ['MILTER_NAME']
   if 'MILTER_SOCKET' in os.environ:
     g_milter_socket = os.environ['MILTER_SOCKET']
+  logging.info("ENV[MILTER_SOCKET]: {0}".format(g_milter_socket))
   if 'MILTER_REJECT_MESSAGE' in os.environ:
     g_milter_reject_message = os.environ['MILTER_REJECT_MESSAGE']
   logging.info("ENV[MILTER_REJECT_MESSAGE]: {0}".format(g_milter_reject_message))
@@ -321,7 +335,7 @@ if __name__ == "__main__":
       g_milter_policy_file = os.environ['MILTER_POLICY_FILE']
       logging.info("ENV[MILTER_POLICY_FILE]: {0}".format(g_milter_policy_file))
       try:
-        g_milter_policy_backend = ExOTAPolicyBackendJSON(g_milter_policy_file)
+        g_policy_backend = ExOTAPolicyBackendJSON(g_milter_policy_file)
         logging.info("JSON policy backend initialized")
       except ExOTAPolicyException as e:
         logging.error("Policy backend error: {0}".format(e.message))

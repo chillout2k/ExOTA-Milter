@@ -1,0 +1,4 @@
+#!/bin/sh
+
+umask 0000
+exec python3 /app/exota-milter.py
