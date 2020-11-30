@@ -249,12 +249,17 @@ class ExOTAMilter(Milter.Base):
         )
         self.setreply('550','5.7.1', g_milter_reject_message)
         return Milter.REJECT
-        
-    logging.info(self.mconn_id + "/" + self.getsymval('i') +
-      "/EOM: Tenant authentication successful (dkim_enabled={0})".format(
-        str(policy.is_dkim_enabled())
+
+    if g_milter_dkim_enabled:
+      logging.info(self.mconn_id + "/" + self.getsymval('i') +
+        "/EOM: Tenant authentication successful (dkim_enabled={0})".format(
+          str(policy.is_dkim_enabled())
+        )
       )
-    )
+    else:
+      logging.info(self.mconn_id + "/" + self.getsymval('i') +
+        "/EOM: Tenant successfully authenticated"
+      )
     return Milter.CONTINUE
 
   def abort(self):
@@ -289,34 +294,32 @@ if __name__ == "__main__":
     g_milter_socket = os.environ['MILTER_SOCKET']
   if 'MILTER_REJECT_MESSAGE' in os.environ:
     g_milter_reject_message = os.environ['MILTER_REJECT_MESSAGE']
+  logging.info("ENV[MILTER_REJECT_MESSAGE]: {0}".format(g_milter_reject_message))
   if 'MILTER_TMPFAIL_MESSAGE' in os.environ:
     g_milter_tmpfail_message = os.environ['MILTER_TMPFAIL_MESSAGE']
+  logging.info("ENV[MILTER_TMPFAIL_MESSAGE]: {0}".format(g_milter_tmpfail_message))
   if 'MILTER_DKIM_ENABLED' in os.environ:
     g_milter_dkim_enabled = True
-    logging.info("DKIM signature authorisation enabled")
     if 'MILTER_TRUSTED_AUTHSERVID' in os.environ:
       g_milter_trusted_authservid = os.environ['MILTER_TRUSTED_AUTHSERVID'].lower()
-      logging.info("Trusted AuthServID: " + g_milter_trusted_authservid)
+      logging.info("ENV[MILTER_TRUSTED_AUTHSERVID]: {0}".format(g_milter_trusted_authservid))
     else:
       logging.error("ENV[MILTER_TRUSTED_AUTHSERVID] is mandatory!")
       sys.exit(1)
+  logging.info("ENV[MILTER_DKIM_ENABLED]: {0}".format(g_milter_dkim_enabled))
   if 'MILTER_X509_ENABLED' in os.environ:
     g_milter_x509_enabled = True
-    logging.info("x509 client certificate CN validation enabled")
     if 'MILTER_X509_TRUSTED_CN' in os.environ:
       g_milter_x509_trusted_cn = os.environ['MILTER_X509_TRUSTED_CN']
-      logging.info("Trusted x509 client CN: '{0}'".format(
-        g_milter_x509_trusted_cn
-      ))
-    else:
-      logging.info("ENV[MILTER_X509_TRUSTED_CN]: using default '{0}'".format(
-        g_milter_x509_trusted_cn
-      ))
+    logging.info("ENV[MILTER_X509_TRUSTED_CN]: {0}".format(g_milter_x509_trusted_cn))
+  logging.info("ENV[MILTER_X509_ENABLED]: {0}".format(g_milter_x509_enabled))
   if 'MILTER_POLICY_SOURCE' in os.environ:
     g_milter_policy_source = os.environ['MILTER_POLICY_SOURCE']
+  logging.info("ENV[MILTER_POLICY_SOURCE]: {0}".format(g_milter_policy_source))
   if g_milter_policy_source == 'file':
     if 'MILTER_POLICY_FILE' in os.environ:
       g_milter_policy_file = os.environ['MILTER_POLICY_FILE']
+      logging.info("ENV[MILTER_POLICY_FILE]: {0}".format(g_milter_policy_file))
       try:
         g_milter_policy_backend = ExOTAPolicyBackendJSON(g_milter_policy_file)
         logging.info("JSON policy backend initialized")

@@ -37,7 +37,7 @@ Microsoft provides an ACL as [JSON file (ID: 10)](https://endpoints.office.com/e
 [...]
 ```
 
-The problem of this IP based ACL is that many other Exchange-Online customers/tenants are sending from the same IP-ranges as well! **This means that nearly any Exchange-Online smarthost tends to be an open relay unless additional authentication mechanism on a higher layer than IP takes place! IP-ACLs are definitely not enough!**
+The problem of this IP based ACL is that many other Exchange-Online customers/tenants are sending from the same IP-ranges as well! **This means that many smarthost configured to relay mails comming from Exchange-Online tends to be an open relay (for Microsoft customers) unless additional authentication mechanism on a higher layer than IP takes place! IP-address based ACLs are definitely not the right way to achieve this!**
 
 ## x509 client certificate presented by Exchange-Online
 The Exchange-Online platform also *presents* a x509 client certificate to identitfy onself to the smarthost. Taking a closer look at the received header we´ll notice that the certificates common name (CN) *mail.protection.outlook.com* is not realy tenant specific. Although the certificate provides additional security regarding the identity of the client system, it does not provide identity regarding the tenant. **IMHO that´s stil not enough to permit relaying!**
@@ -70,14 +70,24 @@ Authentication-Results: trusted.dkim.validating.relay;  dkim=pass header.d=tenan
 [...]
 ```
 
-## Microsoft tenant-ID
-Further each Microsoft Exchange-Online tenant has a unique tenant-ID in form of a UUID ([RFC 4122](https://tools.ietf.org/html/rfc4122)). **ExOTA-Milter** determines the tenant-ID from the *X-MS-Exchange-CrossTenant-Id* email header and uses it as an *mandatory* authentication factor.
+## X-MS-Exchange-CrossTenant-Id header
+Further each Microsoft Exchange-Online tenant has a unique tenant-ID in form of a UUID ([RFC 4122](https://tools.ietf.org/html/rfc4122)). **ExOTA-Milter** determines the tenant-ID from the *X-MS-Exchange-CrossTenant-Id* email header and uses it as a *mandatory* authentication factor.
+```
+[...]
+X-MS-Exchange-CrossTenant-Id: <UUID-of-tenant>
+[...]
+```
 
 # The solution
-The answer to the question "*How can an Exchange-Online user/tenant be identified by a smarthost?*" can be answered as follows.
+So, *how can an Exchange-Online user/tenant be identified by a third party smarthost?*
 
-Finally it´s the combination of all of the above discussed aspects which result in a robust-enough smarthost setup for the Exchange-Online platform:
+Finally it´s the combination of all of the above discussed aspects which may result in a robust-enough smarthost setup used by the Exchange-Online platform:
 * restriction of client IPs via ACL (MTA)
-* verification of Microsoft´s x509 client certificate + CN (MTA + ExOTA-Milter)
+* verification of Microsoft´s x509 client certificate (MTA)
+* matching for client certificate´s CN (ExOTA-Milter)
+* verification of DKIM signatures providing *Authentication-Results* header (another milter)
 * consideration of DKIM verification results per sender domain (ExOTA-Milter)
-* matching of tenant-id provided in email header (ExOTA-Milter)
+* matching for tenant-id provided in *X-MS-Exchange-CrossTenant-Id* header (ExOTA-Milter)
+
+# How to start?
+First of all please take a look at how to set up the testing environment, which is described [here](tests/README.md)
