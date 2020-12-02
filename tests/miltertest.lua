@@ -9,8 +9,7 @@ end
 
 mt.set_timeout(3)
 
--- 5321.FROM + MACROS
-mt.macro(conn, SMFIC_MAIL, '{client_addr}', "127.128.129.130", "i", "4CgSNs5Q9sz7SllQ", '{cert_subject}', "mail.protection.outlook.com")
+-- 5321.FROM
 if mt.mailfrom(conn, "envelope.sender@example.org") ~= nil then
   error "mt.mailfrom() failed"
 end
@@ -18,7 +17,8 @@ if mt.getreply(conn) ~= SMFIR_CONTINUE then
   error "mt.mailfrom() unexpected reply"
 end
 
--- 5321.RCPT
+-- 5321.RCPT+MACROS
+mt.macro(conn, SMFIC_RCPT, '{client_addr}', "127.128.129.130", "i", "4CgSNs5Q9sz7SllQ", '{cert_subject}', "mail.protection.outlook.com")
 if mt.rcptto(conn, "<envelope.recipient@example.com>") ~= nil then
   error "mt.rcptto() failed"
 end
