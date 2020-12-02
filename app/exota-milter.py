@@ -48,6 +48,7 @@ class ExOTAMilter(Milter.Base):
     self.reset_milter()
 
   def reset_milter(self):
+    self.conn_reused = False
     self.client_ip = None
     self.hdr_from = None
     self.hdr_from_domain = None
@@ -64,9 +65,6 @@ class ExOTAMilter(Milter.Base):
 
   # Not registered/used callbacks
   @Milter.nocallback
-  def connect(self, IPname, family, hostaddr):
-    return Milter.CONTINUE
-  @Milter.nocallback
   def hello(self, heloname):
     return Milter.CONTINUE
   @Milter.nocallback
@@ -76,19 +74,23 @@ class ExOTAMilter(Milter.Base):
   def body(self, chunk):
     return Milter.CONTINUE
 
+  def connect(self, IPname, family, hostaddr):
+    self.client_ip = hostaddr[0]
+    logging.debug(self.mconn_id +
+      "/CONNECT client_ip=[" + self.client_ip + "]:" + str(hostaddr[1])
+    )
+    return Milter.CONTINUE
+
   # Mandatory callback
   def envfrom(self, mailfrom, *str):
+    logging.debug(self.mconn_id + "/FROM 5321.from={0}".format(mailfrom))
     # Instance member values remain within reused SMTP-connections!
-    if self.client_ip is not None:
+    if self.conn_reused:
       # Milter connection reused!
       logging.debug(self.mconn_id + "/FROM connection reused!")
       self.reset_milter()
-    self.client_ip = self.getsymval('{client_addr}')
-    if self.client_ip is None:
-      logging.error(self.mconn_id + " FROM exception: could not retrieve milter-macro ({client_addr})!")
-      self.setreply('550','5.7.1', g_milter_tmpfail_message)
-      return Milter.REJECT
     else:
+      self.conn_reused = True
       logging.debug(self.mconn_id + "/FROM client_ip={0}".format(self.client_ip))
     return Milter.CONTINUE
 
@@ -162,7 +164,7 @@ class ExOTAMilter(Milter.Base):
     if g_milter_x509_enabled:
       cert_subject = self.getsymval('{cert_subject}') 
       if cert_subject is None:
-        logging.info(self.mconn_id + "/" + self.getsymval('i') 
+        logging.info(self.mconn_id + "/" + str(self.getsymval('i')) 
           + "/EOM: No trusted x509 client CN found - action=reject"
         )
         self.setreply('550','5.7.1', g_milter_tmpfail_message)
@@ -170,18 +172,18 @@ class ExOTAMilter(Milter.Base):
       else:
         if g_milter_x509_trusted_cn.lower() == cert_subject.lower():
           self.x509_client_valid = True
-          logging.info(self.mconn_id + "/" + self.getsymval('i') +
+          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
             "/EOM: Trusted x509 client CN {0}".format(cert_subject)
           )
         else:
-          logging.info(self.mconn_id + "/" + self.getsymval('i') +
+          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
             "/EOM Untrusted x509 client CN {0} - action=reject".format(cert_subject)
           )
           self.setreply('550','5.7.1', g_milter_tmpfail_message)
           return Milter.REJECT
 
     if self.hdr_from is None:
-      logging.error(self.mconn_id + "/" + self.getsymval('i') +
+      logging.error(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM exception: could not determine 5322.from header - action=reject"
       )
       self.setreply('550','5.7.1', g_milter_tmpfail_message)
@@ -191,24 +193,24 @@ class ExOTAMilter(Milter.Base):
     policy = None
     try:
       policy = g_policy_backend.get(self.hdr_from_domain)
-      logging.debug(self.mconn_id + "/" + self.getsymval('i') +
+      logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM Policy for 5322.from_domain={0} fetched from backend".format(self.hdr_from_domain)
       )
     except (ExOTAPolicyException, ExOTAPolicyNotFoundException) as e:
-      logging.info(self.mconn_id + "/" + self.getsymval('i') +
+      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM {0}".format(e.message)
       )
-      self.setreply('550','5.7.1', g_milter_tmpfail_message)
+      self.setreply('550','5.7.1', g_milter_reject_message)
       return Milter.REJECT
 
     if self.hdr_tenant_id is None:
-      logging.error(self.mconn_id + "/" + self.getsymval('i') +
+      logging.error(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM exception: could not determine X-MS-Exchange-CrossTenant-Id - action=reject"
       )
       self.setreply('550','5.7.1', g_milter_reject_message)
       return Milter.REJECT
     if self.hdr_tenant_id_count > 1:
-      logging.info(self.mconn_id + "/" + self.getsymval('i') +
+      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: More than one tenant-IDs for {0} found - action=reject".format(
           self.hdr_from_domain
         )
@@ -216,11 +218,11 @@ class ExOTAMilter(Milter.Base):
       self.setreply('550','5.7.1', g_milter_reject_message)
       return Milter.REJECT
     if self.hdr_tenant_id == policy.get_tenant_id():
-      logging.info(self.mconn_id + "/" + self.getsymval('i') +
+      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: tenant_id={0} status=match".format(self.hdr_tenant_id)
       )
     else:
-      logging.info(self.mconn_id + "/" + self.getsymval('i') +
+      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: tenant_id={0} status=no_match - action=reject".format(
           self.hdr_tenant_id
         )
@@ -229,48 +231,48 @@ class ExOTAMilter(Milter.Base):
       return Milter.REJECT
 
     if g_milter_dkim_enabled and policy.is_dkim_enabled():
-      logging.debug(self.mconn_id + "/" + self.getsymval('i') +
+      logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: 5322.from_domain={0} dkim_auth=enabled".format(self.hdr_from_domain)
       )
       if len(self.dkim_results) > 0:
         for dkim_result in self.dkim_results:
           if dkim_result['from_domain'] == self.hdr_from_domain:
-            logging.debug(self.mconn_id + "/" + self.getsymval('i') +
+            logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
               "/EOM: Found DKIM authentication result for {0}/{1}".format(
                 self.hdr_from_domain, dkim_result['selector']
               )
             )
             if dkim_result['result'] == 'pass':
-              logging.info(self.mconn_id + "/" + self.getsymval('i') +
+              logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
                 "/EOM: dkim_selector={0} result=pass".format(dkim_result['selector'])
               )
               self.dkim_valid = True
               continue
             else:
-              logging.info(self.mconn_id + "/" + self.getsymval('i') +
+              logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
                 "/EOM: dkim_selector={0} result=fail".format(dkim_result['selector'])
               )
       else:
-        logging.info(self.mconn_id + "/" + self.getsymval('i') +
+        logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
           "/EOM: No DKIM authentication results (AR headers) found - action=reject"
         )
         self.setreply('550','5.7.1', g_milter_reject_message)
         return Milter.REJECT
       if self.dkim_valid == False:
-        logging.info(self.mconn_id + "/" + self.getsymval('i') +
+        logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
           "/EOM: DKIM authentication failed - action=reject"
         )
         self.setreply('550','5.7.1', g_milter_reject_message)
         return Milter.REJECT
 
     if g_milter_dkim_enabled:
-      logging.info(self.mconn_id + "/" + self.getsymval('i') +
+      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: Tenant authentication successful (dkim_enabled={0})".format(
           str(policy.is_dkim_enabled())
         )
       )
     else:
-      logging.info(self.mconn_id + "/" + self.getsymval('i') +
+      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: Tenant successfully authenticated"
       )
     return Milter.CONTINUE
