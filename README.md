@@ -86,7 +86,7 @@ X-MS-Exchange-CrossTenant-Id: <UUID-of-tenant>
 At last the **ExOTA-Milter** needs an additional policy (JSON file), that provides a mapping of *sender-domain <-> tenant-id* and if DKIM-signatures must be taken under consideration or not. The JSON policy file itself looks like this:
 ```
 {
-  "lalalulu.onmicrosoft.com": {
+  "yad.onmicrosoft.com": {
     "tenant_id": "1234abcd-18c5-45e8-88de-123456789abc",
     "dkim_enabled": true
   }

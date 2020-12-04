@@ -37,6 +37,10 @@ g_milter_policy_file = '/data/policy.json'
 g_milter_x509_enabled = False
 # ENV[MILTER_X509_TRUSTED_CN]
 g_milter_x509_trusted_cn = 'mail.protection.outlook.com'
+# ENV[MILTER_ADD_HEADER]
+g_milter_add_header = False
+# ENV[MILTER_AUTHSERVID]
+g_milter_authservid = None
 
 # Another globals
 g_policy_backend = None
@@ -63,23 +67,37 @@ class ExOTAMilter(Milter.Base):
     )
     logging.debug(self.mconn_id + " reset_milter()")
 
+  def smfir_reject(self, **kwargs):
+    message = g_milter_reject_message
+    if 'message' in kwargs:
+      message = kwargs['message']
+    self.setreply('550','5.7.1', message)
+    return Milter.REJECT
+    
+  def smfir_tmpfail(self, **kwargs):
+    message = g_milter_tmpfail_message
+    if 'message' in kwargs:
+      message = kwargs['message']
+    self.setreply('450','4.7.1', message)
+    return Milter.TEMPFAIL
+  
+  def smfir_continue(self):
+    return Milter.CONTINUE
+
   # Not registered/used callbacks
   @Milter.nocallback
   def hello(self, heloname):
-    return Milter.CONTINUE
+    return self.smfir_continue()
   @Milter.nocallback
   def eoh(self):
-    return Milter.CONTINUE
+    return self.smfir_continue()
   @Milter.nocallback
   def body(self, chunk):
-    return Milter.CONTINUE
+    return self.smfir_continue()
 
   def connect(self, IPname, family, hostaddr):
     self.client_ip = hostaddr[0]
-    logging.debug(self.mconn_id +
-      "/CONNECT client_ip=[" + self.client_ip + "]:" + str(hostaddr[1])
-    )
-    return Milter.CONTINUE
+    return self.smfir_continue()
 
   # Mandatory callback
   def envfrom(self, mailfrom, *str):
@@ -92,12 +110,12 @@ class ExOTAMilter(Milter.Base):
     else:
       self.conn_reused = True
       logging.debug(self.mconn_id + "/FROM client_ip={0}".format(self.client_ip))
-    return Milter.CONTINUE
+    return self.smfir_continue()
 
   # Mandatory callback
   def envrcpt(self, to, *str):
     logging.debug(self.mconn_id + "/RCPT 5321.rcpt={0}".format(to))
-    return Milter.CONTINUE
+    return self.smfir_continue()
 
   def header(self, name, hval):
     logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
@@ -113,8 +131,7 @@ class ExOTAMilter(Milter.Base):
         logging.error(self.mconn_id  + "/" + str(self.getsymval('i')) + "/HDR " +
           "Could not determine domain-part of 5322.from=" + self.hdr_from
         )
-        self.setreply('450','4.7.1', g_milter_tmpfail_message)
-        return Milter.TEMPFAIL
+        return self.smfir_reject()
       self.hdr_from_domain = m.group(1)
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/HDR: 5322.from={0}, 5322.from_domain={1}".format(
@@ -150,11 +167,11 @@ class ExOTAMilter(Milter.Base):
             logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
               "/HDR: Ignoring authentication results of {0}".format(ar.authserv_id)
             )
-        except:
-          logging.error(self.mconn_id + "/" + str(self.getsymval('i')) +
-            "/HDR: AR-parse exception: " + traceback.format_exc()
+        except Exception as e:
+          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+            "/HDR: AR-parse exception: {0}".format(str(e))
           )
-    return Milter.CONTINUE
+    return self.smfir_continue()
 
   # EOM is mandatory as well and thus always called by MTA
   def eom(self):
@@ -167,8 +184,7 @@ class ExOTAMilter(Milter.Base):
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) 
           + "/EOM: No trusted x509 client CN found - action=reject"
         )
-        self.setreply('550','5.7.1', g_milter_tmpfail_message)
-        return Milter.REJECT
+        return self.smfir_reject()
       else:
         if g_milter_x509_trusted_cn.lower() == cert_subject.lower():
           self.x509_client_valid = True
@@ -179,15 +195,13 @@ class ExOTAMilter(Milter.Base):
           logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
             "/EOM Untrusted x509 client CN {0} - action=reject".format(cert_subject)
           )
-          self.setreply('550','5.7.1', g_milter_tmpfail_message)
-          return Milter.REJECT
+          return self.smfir_reject()
 
     if self.hdr_from is None:
       logging.error(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM exception: could not determine 5322.from header - action=reject"
       )
-      self.setreply('550','5.7.1', g_milter_tmpfail_message)
-      return Milter.REJECT
+      return self.smfir_reject()
 
     # Get policy for 5322.from_domain
     policy = None
@@ -200,23 +214,20 @@ class ExOTAMilter(Milter.Base):
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM {0}".format(e.message)
       )
-      self.setreply('550','5.7.1', g_milter_reject_message)
-      return Milter.REJECT
+      return self.smfir_reject()
 
     if self.hdr_tenant_id is None:
       logging.error(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM exception: could not determine X-MS-Exchange-CrossTenant-Id - action=reject"
       )
-      self.setreply('550','5.7.1', g_milter_reject_message)
-      return Milter.REJECT
+      return self.smfir_reject()
     if self.hdr_tenant_id_count > 1:
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: More than one tenant-IDs for {0} found - action=reject".format(
           self.hdr_from_domain
         )
       )
-      self.setreply('550','5.7.1', g_milter_reject_message)
-      return Milter.REJECT
+      return self.smfir_reject()
     if self.hdr_tenant_id == policy.get_tenant_id():
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: tenant_id={0} status=match".format(self.hdr_tenant_id)
@@ -227,8 +238,7 @@ class ExOTAMilter(Milter.Base):
           self.hdr_tenant_id
         )
       )
-      self.setreply('550','5.7.1', g_milter_reject_message)
-      return Milter.REJECT
+      return self.smfir_reject()
 
     if g_milter_dkim_enabled and policy.is_dkim_enabled():
       logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
@@ -256,15 +266,12 @@ class ExOTAMilter(Milter.Base):
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
           "/EOM: No DKIM authentication results (AR headers) found - action=reject"
         )
-        self.setreply('550','5.7.1', g_milter_reject_message)
-        return Milter.REJECT
+        return self.smfir_reject()
       if self.dkim_valid == False:
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
           "/EOM: DKIM authentication failed - action=reject"
         )
-        self.setreply('550','5.7.1', g_milter_reject_message)
-        return Milter.REJECT
-
+        return self.smfir_reject()
     if g_milter_dkim_enabled:
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: Tenant authentication successful (dkim_enabled={0})".format(
@@ -275,18 +282,30 @@ class ExOTAMilter(Milter.Base):
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: Tenant successfully authenticated"
       )
-    return Milter.CONTINUE
+    if g_milter_add_header:
+      try:
+        self.addheader("X-ExOTA-Authentication-Results", "{0};\n  exota=pass header.d={1} dkim={2}".format(
+          g_milter_authservid, self.hdr_from_domain, policy.is_dkim_enabled()
+        ))
+        logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/EOM: AR-header added"
+        )
+      except Exception as e:
+        logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/EOM: addheader(AR) failed: {0}".format(str(e))
+      )
+    return self.smfir_continue()
 
   def abort(self):
     # Client disconnected prematurely
     logging.debug(self.mconn_id + "/ABORT")
-    return Milter.CONTINUE
+    return self.smfir_continue()
 
   def close(self):
     # Always called, even when abort is called.
     # Clean up any external resources here.
     logging.debug(self.mconn_id + "/CLOSE")
-    return Milter.CONTINUE
+    return self.smfir_continue()
 
 if __name__ == "__main__":
   if 'LOG_LEVEL' in os.environ:
@@ -305,6 +324,7 @@ if __name__ == "__main__":
   )
   if 'MILTER_NAME' in os.environ:
     g_milter_name = os.environ['MILTER_NAME']
+  logging.info("ENV[MILTER_NAME]: {0}".format(g_milter_name))
   if 'MILTER_SOCKET' in os.environ:
     g_milter_socket = os.environ['MILTER_SOCKET']
   logging.info("ENV[MILTER_SOCKET]: {0}".format(g_milter_socket))
@@ -332,6 +352,17 @@ if __name__ == "__main__":
   if 'MILTER_POLICY_SOURCE' in os.environ:
     g_milter_policy_source = os.environ['MILTER_POLICY_SOURCE']
   logging.info("ENV[MILTER_POLICY_SOURCE]: {0}".format(g_milter_policy_source))
+  if 'MILTER_ADD_HEADER' in os.environ:
+    g_milter_add_header = True
+    if 'MILTER_AUTHSERVID' in os.environ:
+      g_milter_authservid = os.environ['MILTER_AUTHSERVID']
+      if not re.match(r'^\S+$', g_milter_authservid):
+        logging.error("ENV[MILTER_AUTHSERVID] is invalid: {0}".format(g_milter_authservid))
+      logging.info("ENV[MILTER_AUTHSERVID]: {0}".format(g_milter_authservid))
+    else:
+      logging.error("ENV[MILTER_AUTHSERVID] is mandatory!")
+      sys.exit(1)
+  logging.info("ENV[MILTER_ADD_HEADER]: {0}".format(g_milter_add_header))
   if g_milter_policy_source == 'file':
     if 'MILTER_POLICY_FILE' in os.environ:
       g_milter_policy_file = os.environ['MILTER_POLICY_FILE']
@@ -355,6 +386,8 @@ if __name__ == "__main__":
     timeout = 600
     # Register to have the Milter factory create instances of your class:
     Milter.factory = ExOTAMilter
+    flags = Milter.ADDHDRS
+    Milter.set_flags(flags)
     logging.info("Startup " + g_milter_name +
       "@socket: " + g_milter_socket
     )

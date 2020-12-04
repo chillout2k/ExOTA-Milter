@@ -42,6 +42,9 @@ end
 if mt.header(conn, "Authentication-Results", "wrong-auth-serv-id;\n  dkim=pass header.d=yad.onmicrosoft.com header.s=selector1-yad-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
   error "mt.header(Subject) failed"  
 end
+if mt.header(conn, "Authentication-Results", "my-auth-serv-id;\n  exota=pass") ~= nil then
+  error "mt.header(Subject) failed"  
+end
 if mt.header(conn, "Authentication-Results", "my-auth-serv-id;\n  dkim=pass header.d=yad.onmicrosoft.com header.s=selector1-yad-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
   error "mt.header(Subject) failed"  
 end
@@ -63,10 +66,10 @@ elseif mt.getreply(conn) == SMFIR_REPLYCODE then
   mt.echo("EOM-reject")
 end
 
-if not mt.eom_check(conn, MT_HDRADD, "X-SOS-Milter") then
+if not mt.eom_check(conn, MT_HDRADD, "X-ExOTA-Authentication-Results") then
   mt.echo("no header added")
 else
-  mt.echo("X-SOS-Milter header added -> LDAP-Domain with broken SPF")
+  mt.echo("X-ExOTA-Authentication-Results header added")
 end
 
 -- DISCONNECT
