@@ -157,6 +157,8 @@ services:
       MILTER_TRUSTED_AUTHSERVID: 'my-auth-serv-id'
       MILTER_X509_ENABLED: 'some_value'
       MILTER_X509_TRUSTED_CN: 'mail.protection.outlook.com'
+      MILTER_ADD_HEADER: 'some_value'
+      MILTER_AUTHSERVID: 'my-auth-serv-id'
     volumes:
     - "./data/:/data/:ro"
     - "./socket/:/socket/:rw"

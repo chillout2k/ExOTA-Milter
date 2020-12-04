@@ -284,9 +284,12 @@ class ExOTAMilter(Milter.Base):
       )
     if g_milter_add_header:
       try:
-        self.addheader("X-ExOTA-Authentication-Results", "{0};\n  exota=pass header.d={1} dkim={2}".format(
-          g_milter_authservid, self.hdr_from_domain, policy.is_dkim_enabled()
-        ))
+        self.addheader("X-ExOTA-Authentication-Results", 
+          "{0};\n  exota=pass header.d={1} dkim={2} x509_client_trust={3}".format(
+            g_milter_authservid, self.hdr_from_domain, policy.is_dkim_enabled(),
+            g_milter_x509_enabled
+          )
+        )
         logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: AR-header added"
         )
