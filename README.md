@@ -131,12 +131,12 @@ Prerequisites: `docker-compose` installed
 * Create the policy file `data/policy.json` with following content:
 ```
 {
-  "lalalulu.onmicrosoft.com": {
+  "yad.onmicrosoft.com": {
     "tenant_id": "1234abcd-18c5-45e8-88de-123456789abc",
     "dkim_enabled": true
   },
-  "asdf2.onmicrosoft.com": {
-    "tenant_id": "asdftasdfa",
+  "example.com": {
+    "tenant_id": "abcd1234-18c5-45e8-88de-987654321cba",
     "dkim_enabled": false
   }
 }
