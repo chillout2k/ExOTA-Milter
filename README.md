@@ -86,7 +86,7 @@ X-MS-Exchange-CrossTenant-Id: <UUID-of-tenant>
 At last the **ExOTA-Milter** needs an additional policy (JSON file), that provides a mapping of *sender-domain <-> tenant-id* and if DKIM-signatures must be taken under consideration or not. The JSON policy file itself looks like this:
 ```
 {
-  "lalalulu.onmicrosoft.com": {
+  "yad.onmicrosoft.com": {
     "tenant_id": "1234abcd-18c5-45e8-88de-123456789abc",
     "dkim_enabled": true
   }
@@ -131,12 +131,12 @@ Prerequisites: `docker-compose` installed
 * Create the policy file `data/policy.json` with following content:
 ```
 {
-  "lalalulu.onmicrosoft.com": {
+  "yad.onmicrosoft.com": {
     "tenant_id": "1234abcd-18c5-45e8-88de-123456789abc",
     "dkim_enabled": true
   },
-  "asdf2.onmicrosoft.com": {
-    "tenant_id": "asdftasdfa",
+  "example.com": {
+    "tenant_id": "abcd1234-18c5-45e8-88de-987654321cba",
     "dkim_enabled": false
   }
 }
@@ -157,6 +157,8 @@ services:
       MILTER_TRUSTED_AUTHSERVID: 'my-auth-serv-id'
       MILTER_X509_ENABLED: 'some_value'
       MILTER_X509_TRUSTED_CN: 'mail.protection.outlook.com'
+      MILTER_ADD_HEADER: 'some_value'
+      MILTER_AUTHSERVID: 'my-auth-serv-id'
     volumes:
     - "./data/:/data/:ro"
     - "./socket/:/socket/:rw"

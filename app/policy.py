@@ -1,6 +1,7 @@
 import json
 import traceback
 import re
+from uuid import UUID
 
 class ExOTAPolicyException(Exception):
   def __init__(self, message):
@@ -30,14 +31,16 @@ class ExOTAPolicy():
         "Policy must have a 'tenant_id' attribute!"
       )
     else:
-      if policy_dict['tenant_id'] == '':
+      try:
+        UUID(policy_dict['tenant_id'])
+      except ValueError as e:
         raise ExOTAPolicyInvalidException(
-          "'tenant_id' must not be empty!"
-        )
-      if re.match(r'^.*\s+.*$', policy_dict['tenant_id']):
+          "Invalid 'tenant_id': {0}".format(str(e))
+        ) from e
+      except Exception as e:
         raise ExOTAPolicyInvalidException(
-          "'tenant_id' must not contain whitespace characters!"
-        )
+          "Invalid 'tenant_id': {0}".format(traceback.format_exc())
+        ) from e
     if 'dkim_enabled' not in policy_dict:
       raise ExOTAPolicyInvalidException(
         "Policy must have a 'dkim_enabled' attribute!"
