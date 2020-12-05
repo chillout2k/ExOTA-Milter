@@ -2,12 +2,6 @@
 
 The **ExOTA-[Milter](https://en.wikipedia.org/wiki/Milter)** application is written in python3 and derives from **[sdgathman´s pymilter](https://github.com/sdgathman/pymilter)**.
 
-# Synopsis
-TODO
-
-# Table of contents
-TODO
-
 # Abstract/problem/motivation
 Fact is that more and more companies are migrating their Outlook/Exchange environments to the [Microsoft cloud](https://www.microsoft.com/microsoft-365).
 
