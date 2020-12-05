@@ -99,6 +99,7 @@ Finally it´s the combination of all of the above discussed aspects which may re
 * consideration of DKIM verification results per sender domain (ExOTA-Milter)
 * matching for tenant-id provided in *X-MS-Exchange-CrossTenant-Id* header (ExOTA-Milter)
 
+![Activity policy](http://www.plantuml.com/plantuml/png/5SKn3W8W30NGg-W1f8cZcuEZSN4tM8aq5ahAhyhjZMzvM-ciyIZXkgd0c0SYpv_q5DIunopErb4w4biZhg9gWVsBJj_BzRWxYw8ujJp_POQy1UisJ8LN6j7q1m00)
 
 # How about a docker/OCI image?
 ## Using prebuilt images from dockerhub.com
