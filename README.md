@@ -99,67 +99,6 @@ Finally it´s the combination of all of the above discussed aspects which may re
 * consideration of DKIM verification results per sender domain (ExOTA-Milter)
 * matching for tenant-id provided in *X-MS-Exchange-CrossTenant-Id* header (ExOTA-Milter)
 
-```plantuml
-@startuml
-
-title ExOTA-Milter security policy flow 
-start
-:MTA connected; 
-
-:HDR: Collecting all relevant headers;
-note left: From, Authentication-Results, X-MS-Exchange-CrossTenant-Id
-
-:HDR: Recognising sender domain;
-note left: Taken from RFC5322 From-header. RFC5321.mail (envelope) is NOT relevant!
-
-:EOM: Looking up policy in backend;
-note left: Based on RFC5322.from domain
-
-if (Policy found?) then (yes)
-  if (Milter: x509 client CN checking enabled?) then (yes)
-    :Looking up x509 client CN;
-    note left: ENV[MILTER_X509_TRUSTED_CN]
-    if (Found trusted x509 client CN?) then (yes)
-    else (no)
-      :REJECT;
-      stop
-    endif
-  else (no)
-  endif
-  if (Milter: DKIM checking enabled?) then (yes)
-    if (Policy has DKIM checking enabled?) then (yes)
-      :Looking up trusted Authentication-Results headers;
-      note left: ENV[MILTER_TRUSTED_AUTHSERVID]
-      if (Found trusted DKIM AR-headers?) then (yes)
-      else (no)
-        :REJECT;
-        stop
-      endif
-    else (no)
-    endif
-  else (no)
-  endif
-  :Looking up tenant-id in policy;
-  if (Found trusted tenant-ID?) then (no)
-    :REJECT;
-    stop
-  else (yes)
-  endif
-else (no)
-  :REJECT;
-  stop
-endif
-:Removing all X-ExOTA-Authentication-Results headers if present;
-if (Milter: add header?) then (yes)
-  :Adding X-ExOTA-Authentication-Results header;
-  note left: ENV[MILTER_ADD_HEADER]
-else (no)
-endif
-:CONTINUE;
-stop
-
-@enduml
-```
 
 # How about a docker/OCI image?
 ## Using prebuilt images from dockerhub.com
