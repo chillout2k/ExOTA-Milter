@@ -108,8 +108,11 @@ Finally it´s the combination of all of the above discussed aspects which may re
 ![Activity policy](http://www.plantuml.com/plantuml/png/5SKn3W8W30NGg-W1f8cZcuEZSN4tM8aq5ahAhyhjZMzvM-ciyIZXkgd0c0SYpv_q5DIunopErb4w4biZhg9gWVsBJj_BzRWxYw8ujJp_POQy1UisJ8LN6j7q1m00)
 
 # How about a docker/OCI image?
-## Using prebuilt images from dockerhub.com
-**WIP ;-)**
+## Using prebuilt images from [dockerhub](https://hub.docker.com/)
+* AMD64: https://hub.docker.com/r/chillout2k/exota-milter-amd64
+* ARM32v6: https://hub.docker.com/r/chillout2k/exota-milter-arm32v6
+
+The images are built on a weekly basis. The corresponding *Dockerfile* is located [here](OCI/Dockerfile)
 
 ## Build your own image
 Take a look [here](OCI/README.md)
