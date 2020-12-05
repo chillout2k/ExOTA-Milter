@@ -51,22 +51,21 @@ class ExOTAMilter(Milter.Base):
   def __init__(self):
     self.x509_client_valid = False
     self.client_ip = None
-    self.reset_milter()
+    self.reset()
 
-  def reset_milter(self):
+  def reset(self):
     self.conn_reused = False
     self.hdr_from = None
     self.hdr_from_domain = None
     self.hdr_tenant_id = None
     self.hdr_tenant_id_count = 0
-    self.dkim_results = []
     self.dkim_valid = False
     self.xar_hdr_count = 0
     # https://stackoverflow.com/a/2257449
     self.mconn_id = g_milter_name + ': ' + ''.join(
       random.choice(string.ascii_lowercase + string.digits) for _ in range(8)
     )
-    logging.debug(self.mconn_id + " reset_milter()")
+    logging.debug(self.mconn_id + " reset()")
 
   def smfir_reject(self, **kwargs):
     message = g_milter_reject_message
@@ -76,6 +75,9 @@ class ExOTAMilter(Milter.Base):
       message = "queue_id: {0} - {1}".format(kwargs['queue_id'], message)
     if 'reason' in kwargs:
       message = "{0} - reason: {1}".format(message, kwargs['reason'])
+    logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+      ": milter_action=reject"
+    )
     self.setreply('550','5.7.1', message)
     return Milter.REJECT
   
@@ -104,7 +106,7 @@ class ExOTAMilter(Milter.Base):
     if self.conn_reused:
       # Milter connection reused!
       logging.debug(self.mconn_id + "/FROM connection reused!")
-      self.reset_milter()
+      self.reset()
     else:
       self.conn_reused = True
       logging.debug(self.mconn_id + "/FROM client_ip={0}".format(self.client_ip))
@@ -113,10 +115,6 @@ class ExOTAMilter(Milter.Base):
   # Mandatory callback
   def envrcpt(self, to, *str):
     logging.debug(self.mconn_id + "/RCPT 5321.rcpt={0}".format(to))
-    return self.smfir_continue()
-
-  def data(self):
-    logging.debug("DATA")
     return self.smfir_continue()
 
   def header(self, name, hval):
@@ -160,11 +158,8 @@ class ExOTAMilter(Milter.Base):
           if ar.authserv_id == g_milter_trusted_authservid:
             for ar_result in ar.results:
               if ar_result.method == 'dkim':
-                self.dkim_results.append({
-                  "selector": str(ar_result.header_s),
-                  "from_domain": str(ar_result.header_d),
-                  "result": str(ar_result.result)
-                })
+                if ar_result.result == 'pass':
+                  self.dkim_valid = True
           else:
             logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
               "/HDR: Ignoring authentication results of {0}".format(ar.authserv_id)
@@ -271,50 +266,22 @@ class ExOTAMilter(Milter.Base):
       logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: 5322.from_domain={0} dkim_auth=enabled".format(self.hdr_from_domain)
       )
-      if len(self.dkim_results) > 0:
-        for dkim_result in self.dkim_results:
-          if dkim_result['from_domain'] == self.hdr_from_domain:
-            logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
-              "/EOM: Found DKIM authentication result for {0}/{1}".format(
-                self.hdr_from_domain, dkim_result['selector']
-              )
-            )
-            if dkim_result['result'] == 'pass':
-              logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-                "/EOM: dkim_selector={0} result=pass".format(dkim_result['selector'])
-              )
-              self.dkim_valid = True
-              continue
-            else:
-              logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-                "/EOM: dkim_selector={0} result=fail".format(dkim_result['selector'])
-              )
+      if self.dkim_valid:
+        logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+          "/EOM: Found valid DKIM authentication result for 5322.from_domain={0}".format(
+            self.hdr_from_domain
+          )
+        )
       else:
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-          "/EOM: No DKIM authentication results (AR headers) found - action=reject"
+          "/EOM: No valid DKIM authentication result found for 5322.from_domain={0}".format(
+            self.hdr_from_domain
+          )
         )
         return self.smfir_reject(
           queue_id = self.getsymval('i'),
-          reason = 'No DKIM authentication results found'
+          reason = 'No valid DKIM authentication results found'
         )
-      if self.dkim_valid == False:
-        logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-          "/EOM: DKIM authentication failed - action=reject"
-        )
-        return self.smfir_reject(
-          queue_id = self.getsymval('i'),
-          reason = 'DKIM failed'
-        )
-    if g_milter_dkim_enabled:
-      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: Tenant authentication successful (dkim_enabled={0})".format(
-          str(policy.is_dkim_enabled())
-        )
-      )
-    else:
-      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: Tenant successfully authenticated"
-      )
     
     # Delete all existing X-ExOTA-Authentication-Results headers
     for i in range(self.xar_hdr_count, 0, -1):
@@ -337,11 +304,22 @@ class ExOTAMilter(Milter.Base):
           )
         )
         logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: AR-header added"
+          "/EOM: AR-header added"
         )
       except Exception as e:
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: addheader(AR) failed: {0}".format(str(e))
+          "/EOM: addheader(AR) failed: {0}".format(str(e))
+        )
+
+    if g_milter_dkim_enabled:
+      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/EOM: Tenant successfully authorized (dkim_enabled={0})".format(
+          str(policy.is_dkim_enabled())
+        )
+      )
+    else:
+      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/EOM: Tenant successfully authorized"
       )
     return self.smfir_continue()
 

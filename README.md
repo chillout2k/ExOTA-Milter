@@ -53,6 +53,10 @@ Client certificate verification is the job of the underlying MTA. So the **ExOTA
 ## DKIM - DomainKey Identified Message
 Nevertheless, as [Microsoft supports DKIM-signing for outbound email traffic](https://docs.microsoft.com/de-de/microsoft-365/security/office-365-security/use-dkim-to-validate-outbound-email?view=o365-worldwide) the **ExOTA-Milter** can be used to authenticate sending tenants, respectively their sender domains, based on the cryptographic capabilities of [DKIM](https://tools.ietf.org/html/rfc6376). In fact the **ExOTA-Milter** does not validate the DKIM-signatures itself. Instead it simply parses DKIM-specific *Authentication-Results* headers produced by any previously DKIM-validating milter (like [OpenDKIM](http://www.opendkim.org/), [Rspamd](https://rspamd.com/) or [AMavis](https://www.ijs.si/software/amavisd/)) in the chain. I personally prefer OpenDKIM as it´s lightweight and fully focused on DKIM.
 
+**To use DKIM for tenant/sender domain authentication, DKIM must be enabled in the milter as well as in each policy!**
+
+**Worth to know when using OpenDKIM as AR provider:** As Microsoft already signs with 2kRSA keys be sure to use a version of OpenDKIM, which is linked against a DNS resolver library that is able to handle such large DNS responses! Further the resolver library should be aware of DNSSEC! **[libunbound](https://nlnetlabs.nl/documentation/unbound/libunbound/) meets all of these requirements :-)**. A libunbound-linked version of OpenDKIM is provided by [Debian](https://wiki.debian.org/opendkim#DNS_resolution).
+
 *DKIM-Signature* headers appended by the Exchange-Online platform look like this:
 ```
 [...]
@@ -63,10 +67,12 @@ DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
  b=DYTLJtLFjvVrSZtZQagTwuEe5PQYqrNGi7hR5bkhO[...snip...]
 [...]
 ```
-*Authentication-Results* headers provided by OpenDKIM (signature validated) look like this:
+*Authentication-Results* headers provided by OpenDKIM (signature valid, public key not DNSSEC signed) look like this:
 ```
 [...]
-Authentication-Results: trusted.dkim.validating.relay;  dkim=pass header.d=tenantdomain.onmicrosoft.com header.s=selector1-tenantdomain-onmicrosoft-com header.b=mmmjFpv8"
+Authentication-Results: trusted.dkim.validating.relay;
+  dkim=pass (2048-bit key; unprotected) header.d=tenantdomain.onmicrosoft.com header.i=@tenantdomain.onmicrosoft.com header.b=mmmjFpv8";
+  dkim-atps=neutral
 [...]
 ```
 
