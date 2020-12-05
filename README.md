@@ -99,88 +99,74 @@ Finally it´s the combination of all of the above discussed aspects which may re
 * consideration of DKIM verification results per sender domain (ExOTA-Milter)
 * matching for tenant-id provided in *X-MS-Exchange-CrossTenant-Id* header (ExOTA-Milter)
 
+```plantuml
+@startuml
+
+title ExOTA-Milter security policy flow 
+start
+:MTA connected; 
+
+:HDR: Collecting all relevant headers;
+note left: From, Authentication-Results, X-MS-Exchange-CrossTenant-Id
+
+:HDR: Recognising sender domain;
+note left: Taken from RFC5322 From-header. RFC5321.mail (envelope) is NOT relevant!
+
+:EOM: Looking up policy in backend;
+note left: Based on RFC5322.from domain
+
+if (Policy found?) then (yes)
+  if (Milter: x509 client CN checking enabled?) then (yes)
+    :Looking up x509 client CN;
+    note left: ENV[MILTER_X509_TRUSTED_CN]
+    if (Found trusted x509 client CN?) then (yes)
+    else (no)
+      :REJECT;
+      stop
+    endif
+  else (no)
+  endif
+  if (Milter: DKIM checking enabled?) then (yes)
+    if (Policy has DKIM checking enabled?) then (yes)
+      :Looking up trusted Authentication-Results headers;
+      note left: ENV[MILTER_TRUSTED_AUTHSERVID]
+      if (Found trusted DKIM AR-headers?) then (yes)
+      else (no)
+        :REJECT;
+        stop
+      endif
+    else (no)
+    endif
+  else (no)
+  endif
+  :Looking up tenant-id in policy;
+  if (Found trusted tenant-ID?) then (no)
+    :REJECT;
+    stop
+  else (yes)
+  endif
+else (no)
+  :REJECT;
+  stop
+endif
+:Removing all X-ExOTA-Authentication-Results headers if present;
+if (Milter: add header?) then (yes)
+  :Adding X-ExOTA-Authentication-Results header;
+  note left: ENV[MILTER_ADD_HEADER]
+else (no)
+endif
+:CONTINUE;
+stop
+
+@enduml
+```
+
 # How about a docker/OCI image?
 ## Using prebuilt images from dockerhub.com
 **WIP ;-)**
 
 ## Build your own image
-Actually I´m going with docker-ce to build the container image, but same results should come out with e.g. [img](https://github.com/genuinetools/img) etc.
-
-Run following command in the root directory of this repo:
-```
-docker build -t exota-milter:local -f OCI/Dockerfile .
-[...]
-Successfully built 9cceb121f604
-Successfully tagged exota-milter:local
-```
-
-## Deploy the OCI image with `docker-compose`
-Prerequisites: `docker-compose` installed
-* Create a deployment directory and jump into it. In my case it´s `/docker/containers/exota-milter`
-  * `install -d /docker/containers/exota-milter`
-  * `cd /docker/containers/exota-milter`
-* Create further directories in the deployment directory: 
-  * `install -d -m 777 data`. The application expects the policy file in `/data/policy.json` (path inside the container!).
-  * `install -d -m 777 socket`. The application places the milter socket file under `/socket/exota-milter` (path inside the container!)
-* Create the policy file `data/policy.json` with following content:
-```
-{
-  "yad.onmicrosoft.com": {
-    "tenant_id": "1234abcd-18c5-45e8-88de-123456789abc",
-    "dkim_enabled": true
-  },
-  "example.com": {
-    "tenant_id": "abcd1234-18c5-45e8-88de-987654321cba",
-    "dkim_enabled": false
-  }
-}
-```
-* Create a file named `docker-compose.yml` in the deployment directory with following content:
-```
-version: '2.4'
-
-services:
-  exota-milter:
-    image: exota-milter:local
-    environment:
-      LOG_LEVEL: 'debug'
-      MILTER_SOCKET: '/socket/exota-milter'
-      #MILTER_SOCKET: 'inet:123456@0.0.0.0'
-      MILTER_POLICY_FILE: '/data/policy.json'
-      MILTER_DKIM_ENABLED: 'some_value'
-      MILTER_TRUSTED_AUTHSERVID: 'my-auth-serv-id'
-      MILTER_X509_ENABLED: 'some_value'
-      MILTER_X509_TRUSTED_CN: 'mail.protection.outlook.com'
-      MILTER_ADD_HEADER: 'some_value'
-      MILTER_AUTHSERVID: 'my-auth-serv-id'
-    volumes:
-    - "./data/:/data/:ro"
-    - "./socket/:/socket/:rw"
-```
-If the milter should listen on a TCP-socket instead, just change the value of the `MILTER_SOCKET` ENV-variable to something like `inet:<port>@0.0.0.0`. As IPv6 is supported by the `libmilter` library too, a notation like `inet6:<port>@[::]` is also possible.
-
-* Deploy
-
-Execute `docker-compose up` and if nothing went wrong you shold see following output:
-```
-Creating network "exota-milter_default" with the default driver
-Creating exota-milter_exota-milter_1 ... done
-Attaching to exota-milter_exota-milter_1
-exota-milter_1  | 2020-11-30 12:38:51,164: INFO ENV[MILTER_SOCKET]: /socket/exota-milter
-exota-milter_1  | 2020-11-30 12:38:51,164: INFO ENV[MILTER_REJECT_MESSAGE]: Security policy violation!
-exota-milter_1  | 2020-11-30 12:38:51,164: INFO ENV[MILTER_TMPFAIL_MESSAGE]: Service temporarily not available! Please try again later.
-exota-milter_1  | 2020-11-30 12:38:51,164: INFO ENV[MILTER_TRUSTED_AUTHSERVID]: my-auth-serv-id
-exota-milter_1  | 2020-11-30 12:38:51,165: INFO ENV[MILTER_DKIM_ENABLED]: True
-exota-milter_1  | 2020-11-30 12:38:51,165: INFO ENV[MILTER_X509_TRUSTED_CN]: mail.protection.outlook.com
-exota-milter_1  | 2020-11-30 12:38:51,165: INFO ENV[MILTER_X509_ENABLED]: True
-exota-milter_1  | 2020-11-30 12:38:51,165: INFO ENV[MILTER_POLICY_SOURCE]: file
-exota-milter_1  | 2020-11-30 12:38:51,165: INFO ENV[MILTER_POLICY_FILE]: /data/policy.json
-exota-milter_1  | 2020-11-30 12:38:51,166: INFO JSON policy backend initialized
-exota-milter_1  | 2020-11-30 12:38:51,166: INFO Startup exota-milter@socket: /socket/exota-milter
-```
-
-Voila! The milter socket can be accessed on the host filesystem (in my case) under `/docker/containers/exota-milter/socket/exota-milter`.
-
+Take a look [here](OCI/README.md)
 
 # How to test?
 First of all please take a look at how to set up the testing environment, which is described [here](tests/README.md)
