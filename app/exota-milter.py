@@ -115,6 +115,10 @@ class ExOTAMilter(Milter.Base):
     logging.debug(self.mconn_id + "/RCPT 5321.rcpt={0}".format(to))
     return self.smfir_continue()
 
+  def data(self):
+    logging.debug("DATA")
+    return self.smfir_continue()
+
   def header(self, name, hval):
     logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
       "/HDR: Header: {0}, Value: {1}".format(name, hval)
