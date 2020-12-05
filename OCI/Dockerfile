@@ -1,4 +1,5 @@
-FROM alpine
+ARG ARCH
+FROM $ARCH/alpine
 LABEL maintainer="Dominik Chilla <dominik@zwackl.de>"
 LABEL git_repo="https://github.com/chillout2k/exota-milter"
 

@@ -4,7 +4,7 @@ Actually I´m going with docker-ce to build the container image, but same result
 
 Run following command in the root directory of this repo:
 ```
-docker build -t exota-milter:local -f OCI/Dockerfile .
+docker build -t exota-milter:local --build-arg ARCH=amd64 -f OCI/Dockerfile .
 [...]
 Successfully built 9cceb121f604
 Successfully tagged exota-milter:local
