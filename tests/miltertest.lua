@@ -54,6 +54,9 @@ end
 if mt.header(conn, "Authentication-Results", "some-validating-host;\n dkim=pass header.d=paypal.de header.s=pp-dkim1 header.b=PmTtUzer;\n dmarc=pass (policy=reject) header.from=paypal.de;\n spf=pass (some-validating-host: domain of service@paypal.de designates 173.0.84.226 as permitted sender) smtp.mailfrom=service@paypal.de") ~= nil then
   error "mt.header(Subject) failed"  
 end
+if mt.header(conn, "X-ExOTA-Authentication-Results", "my-auth-serv-id;\n exota=pass") ~= nil then
+  error "mt.header(Subject) failed"  
+end
 
 -- EOM
 if mt.eom(conn) ~= nil then
