@@ -19,7 +19,7 @@ RUN chown -R exota-milter /app /cmd \
   && chmod -R +x /app /cmd
 
 # Default file policy path: /data/policy.json
-VOLUME [ "/data" ]
+VOLUME [ "/socket", "/data" ]
 
 USER exota-milter
 CMD [ "/cmd" ]

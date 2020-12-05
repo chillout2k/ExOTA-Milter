@@ -49,18 +49,19 @@ g_re_domain = re.compile(r'^.*@(\S+)$', re.IGNORECASE)
 class ExOTAMilter(Milter.Base):
   # Each new connection is handled in an own thread
   def __init__(self):
+    self.x509_client_valid = False
+    self.client_ip = None
     self.reset_milter()
 
   def reset_milter(self):
     self.conn_reused = False
-    self.client_ip = None
     self.hdr_from = None
     self.hdr_from_domain = None
     self.hdr_tenant_id = None
     self.hdr_tenant_id_count = 0
     self.dkim_results = []
     self.dkim_valid = False
-    self.x509_client_valid = False
+    self.xar_hdr_count = 0
     # https://stackoverflow.com/a/2257449
     self.mconn_id = g_milter_name + ': ' + ''.join(
       random.choice(string.ascii_lowercase + string.digits) for _ in range(8)
@@ -71,15 +72,12 @@ class ExOTAMilter(Milter.Base):
     message = g_milter_reject_message
     if 'message' in kwargs:
       message = kwargs['message']
+    if 'queue_id' in kwargs:
+      message = "queue_id: {0} - {1}".format(kwargs['queue_id'], message)
+    if 'reason' in kwargs:
+      message = "{0} - reason: {1}".format(message, kwargs['reason'])
     self.setreply('550','5.7.1', message)
     return Milter.REJECT
-    
-  def smfir_tmpfail(self, **kwargs):
-    message = g_milter_tmpfail_message
-    if 'message' in kwargs:
-      message = kwargs['message']
-    self.setreply('450','4.7.1', message)
-    return Milter.TEMPFAIL
   
   def smfir_continue(self):
     return Milter.CONTINUE
@@ -131,7 +129,7 @@ class ExOTAMilter(Milter.Base):
         logging.error(self.mconn_id  + "/" + str(self.getsymval('i')) + "/HDR " +
           "Could not determine domain-part of 5322.from=" + self.hdr_from
         )
-        return self.smfir_reject()
+        return self.smfir_reject(queue_id=self.getsymval('i'))
       self.hdr_from_domain = m.group(1)
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/HDR: 5322.from={0}, 5322.from_domain={1}".format(
@@ -171,6 +169,13 @@ class ExOTAMilter(Milter.Base):
           logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
             "/HDR: AR-parse exception: {0}".format(str(e))
           )
+    
+    elif(name == "X-ExOTA-Authentication-Results"):
+      logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/HDR: Found X-ExOTA-Authentication-Results header. Marking for deletion."
+      )
+      self.xar_hdr_count += 1
+
     return self.smfir_continue()
 
   # EOM is mandatory as well and thus always called by MTA
@@ -184,7 +189,10 @@ class ExOTAMilter(Milter.Base):
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) 
           + "/EOM: No trusted x509 client CN found - action=reject"
         )
-        return self.smfir_reject()
+        return self.smfir_reject(
+          queue_id = self.getsymval('i'),
+          reason = 'No trusted x509 client CN found'
+        )
       else:
         if g_milter_x509_trusted_cn.lower() == cert_subject.lower():
           self.x509_client_valid = True
@@ -195,13 +203,19 @@ class ExOTAMilter(Milter.Base):
           logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
             "/EOM Untrusted x509 client CN {0} - action=reject".format(cert_subject)
           )
-          return self.smfir_reject()
+          return self.smfir_reject(
+            queue_id = self.getsymval('i'),
+            reason = "Untrusted x509 client CN: {0}".format(cert_subject)
+          )
 
     if self.hdr_from is None:
       logging.error(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM exception: could not determine 5322.from header - action=reject"
       )
-      return self.smfir_reject()
+      return self.smfir_reject(
+        queue_id = self.getsymval('i'),
+        reason = '5322.from header missing'
+      )
 
     # Get policy for 5322.from_domain
     policy = None
@@ -214,20 +228,26 @@ class ExOTAMilter(Milter.Base):
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM {0}".format(e.message)
       )
-      return self.smfir_reject()
+      return self.smfir_reject(
+        queue_id = self.getsymval('i'),
+        reason = "No policy for {0}".format(self.hdr_from_domain)
+      )
 
     if self.hdr_tenant_id is None:
       logging.error(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM exception: could not determine X-MS-Exchange-CrossTenant-Id - action=reject"
       )
-      return self.smfir_reject()
+      return self.smfir_reject(
+        queue_id = self.getsymval('i'),
+        reason = 'Tenant-ID is missing!'
+      )
     if self.hdr_tenant_id_count > 1:
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: More than one tenant-IDs for {0} found - action=reject".format(
           self.hdr_from_domain
         )
       )
-      return self.smfir_reject()
+      return self.smfir_reject(queue_id=self.getsymval('i'))
     if self.hdr_tenant_id == policy.get_tenant_id():
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: tenant_id={0} status=match".format(self.hdr_tenant_id)
@@ -238,7 +258,10 @@ class ExOTAMilter(Milter.Base):
           self.hdr_tenant_id
         )
       )
-      return self.smfir_reject()
+      return self.smfir_reject(
+        queue_id = self.getsymval('i'),
+        reason = 'No policy match for tenant-id'
+      )
 
     if g_milter_dkim_enabled and policy.is_dkim_enabled():
       logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
@@ -266,12 +289,18 @@ class ExOTAMilter(Milter.Base):
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
           "/EOM: No DKIM authentication results (AR headers) found - action=reject"
         )
-        return self.smfir_reject()
+        return self.smfir_reject(
+          queue_id = self.getsymval('i'),
+          reason = 'No DKIM authentication results found'
+        )
       if self.dkim_valid == False:
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
           "/EOM: DKIM authentication failed - action=reject"
         )
-        return self.smfir_reject()
+        return self.smfir_reject(
+          queue_id = self.getsymval('i'),
+          reason = 'DKIM failed'
+        )
     if g_milter_dkim_enabled:
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: Tenant authentication successful (dkim_enabled={0})".format(
@@ -282,10 +311,23 @@ class ExOTAMilter(Milter.Base):
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: Tenant successfully authenticated"
       )
+    
+    # Delete all existing X-ExOTA-Authentication-Results headers
+    for i in range(self.xar_hdr_count, 0, -1):
+      logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/EOM: Deleting X-ExOTA-Authentication-Results header"
+      )
+      try:
+        self.chgheader("X-ExOTA-Authentication-Results", i-1, '')
+      except Exception as e:
+        logging.error(self.mconn_id + "/" + str(self.getsymval('i')) +
+          "/EOM: Deleting X-ExOTA-Authentication-Results failed: {0}".format(str(e))
+        )
+
     if g_milter_add_header:
       try:
         self.addheader("X-ExOTA-Authentication-Results", 
-          "{0};\n  exota=pass header.d={1} dkim={2} x509_client_trust={3}".format(
+          "{0};\n  auth=pass header.d={1} dkim={2} x509_client_trust={3}".format(
             g_milter_authservid, self.hdr_from_domain, policy.is_dkim_enabled(),
             g_milter_x509_enabled
           )
@@ -389,8 +431,7 @@ if __name__ == "__main__":
     timeout = 600
     # Register to have the Milter factory create instances of your class:
     Milter.factory = ExOTAMilter
-    flags = Milter.ADDHDRS
-    Milter.set_flags(flags)
+    Milter.set_flags(Milter.ADDHDRS + Milter.CHGHDRS)
     logging.info("Startup " + g_milter_name +
       "@socket: " + g_milter_socket
     )
