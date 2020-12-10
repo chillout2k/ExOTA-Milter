@@ -123,7 +123,7 @@ class ExOTAMilter(Milter.Base):
     )
 
     # Parse RFC-5322-From header
-    if(name == "From"):
+    if(name.lower() == "From".lower()):
       hdr_5322_from = email.utils.parseaddr(hval)
       self.hdr_from = hdr_5322_from[1].lower()
       m = re.match(g_re_domain, self.hdr_from)
@@ -140,7 +140,7 @@ class ExOTAMilter(Milter.Base):
       )
 
     # Parse non-standardized X-MS-Exchange-CrossTenant-Id header
-    elif(name == "X-MS-Exchange-CrossTenant-Id"):
+    elif(name.lower() == "X-MS-Exchange-CrossTenant-Id".lower()):
       self.hdr_tenant_id_count += 1
       self.hdr_tenant_id = hval.lower()
       logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
@@ -148,7 +148,7 @@ class ExOTAMilter(Milter.Base):
       )
 
     # Parse RFC-7601 Authentication-Results header
-    elif(name == "Authentication-Results"):
+    elif(name.lower() == "Authentication-Results".lower()):
       if g_milter_dkim_enabled == True:
         ar = None
         try:
