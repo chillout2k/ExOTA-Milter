@@ -89,7 +89,7 @@ class ExOTAPolicyBackendJSON(ExOTAPolicyBackend):
       return ExOTAPolicy(self.policies[from_domain])
     except KeyError as e:
       raise ExOTAPolicyNotFoundException(
-        "Policy for from_domain={0} not found".format(from_domain)
+        "Policy for domain={0} not found".format(from_domain)
       ) from e
     except Exception as e:
       raise ExOTAPolicyException(
