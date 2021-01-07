@@ -8,7 +8,7 @@ start
 note left: From, Authentication-Results, X-MS-Exchange-CrossTenant-Id
 
 :HDR: Recognising sender domain;
-note left: Taken from RFC5322 From-header. RFC5321.mail (envelope) is NOT relevant!
+note left: Taken from RFC5322.From header and/or RFC5322.Resent-From header. RFC5321.mail (envelope) is NOT relevant!
 
 :EOM: Looking up policy in backend;
 note left: Based on RFC5322.from domain

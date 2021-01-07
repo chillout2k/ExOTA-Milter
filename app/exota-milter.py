@@ -37,6 +37,8 @@ g_milter_policy_file = '/data/policy.json'
 g_milter_x509_enabled = False
 # ENV[MILTER_X509_TRUSTED_CN]
 g_milter_x509_trusted_cn = 'mail.protection.outlook.com'
+# ENV[MILTER_X509_IP_WHITELIST]
+g_milter_x509_ip_whitelist = ['127.0.0.1','::1']
 # ENV[MILTER_ADD_HEADER]
 g_milter_add_header = False
 # ENV[MILTER_AUTHSERVID]
@@ -57,9 +59,15 @@ class ExOTAMilter(Milter.Base):
     self.conn_reused = False
     self.hdr_from = None
     self.hdr_from_domain = None
+    self.hdr_resent_from = None
+    self.hdr_resent_from_domain = None
+    self.forwarded = False
     self.hdr_tenant_id = None
     self.hdr_tenant_id_count = 0
+    self.x509_whitelisted = False
     self.dkim_valid = False
+    self.passed_dkim_results = []
+    self.dkim_aligned = False
     self.xar_hdr_count = 0
     # https://stackoverflow.com/a/2257449
     self.mconn_id = g_milter_name + ': ' + ''.join(
@@ -76,7 +84,7 @@ class ExOTAMilter(Milter.Base):
     if 'reason' in kwargs:
       message = "{0} - reason: {1}".format(message, kwargs['reason'])
     logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-      ": milter_action=reject"
+      ": milter_action=reject message={0}".format(message)
     )
     self.setreply('550','5.7.1', message)
     return Milter.REJECT
@@ -138,6 +146,23 @@ class ExOTAMilter(Milter.Base):
           self.hdr_from, self.hdr_from_domain
         )
       )
+    
+    # Parse RFC-5322-Resent-From header (Forwarded)
+    if(name.lower() == "Resent-From".lower()):
+      hdr_5322_resent_from = email.utils.parseaddr(hval)
+      self.hdr_resent_from = hdr_5322_resent_from[1].lower()
+      m = re.match(g_re_domain, self.hdr_resent_from)
+      if m is None:
+        logging.error(self.mconn_id  + "/" + str(self.getsymval('i')) + "/HDR " +
+          "Could not determine domain-part of 5322.resent_from=" + self.hdr_resent_from
+        )
+      else:
+        self.hdr_resent_from_domain = m.group(1).lower()
+        logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+          "/HDR: 5322.resentfrom={0}, 5322.resent_from_domain={1}".format(
+            self.hdr_resent_from, self.hdr_resent_from_domain
+          )
+        )
 
     # Parse non-standardized X-MS-Exchange-CrossTenant-Id header
     elif(name.lower() == "X-MS-Exchange-CrossTenant-Id".lower()):
@@ -159,6 +184,12 @@ class ExOTAMilter(Milter.Base):
             for ar_result in ar.results:
               if ar_result.method == 'dkim':
                 if ar_result.result == 'pass':
+                  self.passed_dkim_results.append({
+                    "sdid": ar_result.header_d
+                  })
+                  logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+                    "/HDR: DKIM passed SDID {0}".format(ar_result.header_d)
+                  )
                   self.dkim_valid = True
           else:
             logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
@@ -183,33 +214,42 @@ class ExOTAMilter(Milter.Base):
 
     # Check if client certificate CN matches trusted CN
     if g_milter_x509_enabled:
-      cert_subject = self.getsymval('{cert_subject}') 
-      if cert_subject is None:
-        logging.info(self.mconn_id + "/" + str(self.getsymval('i')) 
-          + "/EOM: No trusted x509 client CN found - action=reject"
-        )
-        return self.smfir_reject(
-          queue_id = self.getsymval('i'),
-          reason = 'No trusted x509 client CN found'
-        )
-      else:
-        if g_milter_x509_trusted_cn.lower() == cert_subject.lower():
-          self.x509_client_valid = True
-          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-            "/EOM: Trusted x509 client CN {0}".format(cert_subject)
+      for whitelisted_client_ip in g_milter_x509_ip_whitelist:
+        if self.client_ip == whitelisted_client_ip:
+          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) 
+            + "/EOM: x509 CN check: client-IP '{0}' is whitelisted".format(
+              whitelisted_client_ip
+            )
           )
-        else:
-          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-            "/EOM Untrusted x509 client CN {0} - action=reject".format(cert_subject)
+          self.x509_whitelisted = True
+      if not self.x509_whitelisted:
+        cert_subject = self.getsymval('{cert_subject}') 
+        if cert_subject is None:
+          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) 
+            + "/EOM: No trusted x509 client CN found - action=reject"
           )
           return self.smfir_reject(
             queue_id = self.getsymval('i'),
-            reason = "Untrusted x509 client CN: {0}".format(cert_subject)
+            reason = 'No trusted x509 client CN found'
           )
+        else:
+          if g_milter_x509_trusted_cn.lower() == cert_subject.lower():
+            self.x509_client_valid = True
+            logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+              "/EOM: Trusted x509 client CN {0}".format(cert_subject)
+            )
+          else:
+            logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+              "/EOM: Untrusted x509 client CN {0} - action=reject".format(cert_subject)
+            )
+            return self.smfir_reject(
+              queue_id = self.getsymval('i'),
+              reason = "Untrusted x509 client CN: {0}".format(cert_subject)
+            )
 
     if self.hdr_from is None:
       logging.error(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM exception: could not determine 5322.from header - action=reject"
+        "/EOM: exception: could not determine 5322.from header - action=reject"
       )
       return self.smfir_reject(
         queue_id = self.getsymval('i'),
@@ -221,20 +261,48 @@ class ExOTAMilter(Milter.Base):
     try:
       policy = g_policy_backend.get(self.hdr_from_domain)
       logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM Policy for 5322.from_domain={0} fetched from backend".format(self.hdr_from_domain)
+        "/EOM: Policy for 5322.from_domain={0} fetched from backend".format(
+          self.hdr_from_domain
+        )
       )
     except (ExOTAPolicyException, ExOTAPolicyNotFoundException) as e:
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM {0}".format(e.message)
+        "/EOM: 5322.from: {0}".format(e.message)
       )
-      return self.smfir_reject(
-        queue_id = self.getsymval('i'),
-        reason = "No policy for {0}".format(self.hdr_from_domain)
-      )
+      # Forwarded message? Maybe the Resent-From header domain matches.
+      if self.hdr_resent_from_domain is not None:
+        try:
+          policy = g_policy_backend.get(self.hdr_resent_from_domain)
+          logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+            "/EOM: Policy for 5322.resent_from_domain={0} fetched from backend".format(
+              self.hdr_resent_from_domain
+            )
+          )
+          self.forwarded = True
+          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+            "/EOM: Forwarded message -> Policy for 5322.resent_from_domain={0} found.".format(
+              self.hdr_resent_from_domain
+            )
+          )
+        except (ExOTAPolicyException, ExOTAPolicyNotFoundException) as e:
+          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+            "/EOM: 5322.resent-from: {0}".format(e.message)
+          )
+          return self.smfir_reject(
+            queue_id = self.getsymval('i'),
+            reason = "No policy for 5322.resent_from_domain {0}".format(
+              self.hdr_resent_from_domain
+            )
+          ) 
+      else:
+        return self.smfir_reject(
+          queue_id = self.getsymval('i'),
+          reason = "No policy for 5322.from_domain {0}".format(self.hdr_from_domain)
+        )
 
     if self.hdr_tenant_id is None:
       logging.error(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM exception: could not determine X-MS-Exchange-CrossTenant-Id - action=reject"
+        "/EOM: exception: could not determine X-MS-Exchange-CrossTenant-Id - action=reject"
       )
       return self.smfir_reject(
         queue_id = self.getsymval('i'),
@@ -268,15 +336,23 @@ class ExOTAMilter(Milter.Base):
       )
       if self.dkim_valid:
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-          "/EOM: Found valid DKIM authentication result for 5322.from_domain={0}".format(
-            self.hdr_from_domain
-          )
+          "/EOM: Valid DKIM signatures found"
         )
+        for passed_dkim_result in self.passed_dkim_results:
+          if self.hdr_from_domain == passed_dkim_result['sdid']:
+            logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+              "/EOM: Found aligned DKIM signature for SDID: {0}".format(
+                passed_dkim_result['sdid']
+              ) 
+            )
+            self.dkim_aligned = True
+        if not self.dkim_aligned:
+          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+            "/EOM: No aligned DKIM signatures found!"
+          )
       else:
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-          "/EOM: No valid DKIM authentication result found for 5322.from_domain={0}".format(
-            self.hdr_from_domain
-          )
+          "/EOM: No valid DKIM authentication result found"
         )
         return self.smfir_reject(
           queue_id = self.getsymval('i'),
@@ -297,12 +373,16 @@ class ExOTAMilter(Milter.Base):
 
     if g_milter_add_header:
       try:
-        self.addheader("X-ExOTA-Authentication-Results", 
-          "{0};\n  auth=pass header.d={1} dkim={2} x509_client_trust={3}".format(
-            g_milter_authservid, self.hdr_from_domain, policy.is_dkim_enabled(),
-            g_milter_x509_enabled
-          )
+        addhdr_value = str(
+          "{0};\n" + 
+          "  auth=pass 5322_from_domain={1} dkim={2} dkim_aligned={3} " + 
+          "x509_client_trust={4} forwarded={5}"
+        ).format(
+          g_milter_authservid, self.hdr_from_domain, policy.is_dkim_enabled(),
+          self.dkim_aligned, g_milter_x509_enabled, self.forwarded
         )
+        logging.debug(addhdr_value)
+        self.addheader("X-ExOTA-Authentication-Results", addhdr_value)
         logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
           "/EOM: AR-header added"
         )
@@ -313,8 +393,8 @@ class ExOTAMilter(Milter.Base):
 
     if g_milter_dkim_enabled:
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: Tenant successfully authorized (dkim_enabled={0})".format(
-          str(policy.is_dkim_enabled())
+        "/EOM: Tenant successfully authorized (dkim_enabled={0} dkim_aligned={1})".format(
+          policy.is_dkim_enabled(), self.dkim_aligned
         )
       )
     else:
@@ -375,6 +455,10 @@ if __name__ == "__main__":
     if 'MILTER_X509_TRUSTED_CN' in os.environ:
       g_milter_x509_trusted_cn = os.environ['MILTER_X509_TRUSTED_CN']
     logging.info("ENV[MILTER_X509_TRUSTED_CN]: {0}".format(g_milter_x509_trusted_cn))
+    if 'MILTER_X509_IP_WHITELIST' in os.environ:
+      g_milter_x509_ip_whitelist = "".join(os.environ['MILTER_X509_IP_WHITELIST'].split())
+      g_milter_x509_ip_whitelist = g_milter_x509_ip_whitelist.split(',')
+    logging.info("ENV[MILTER_X509_IP_WHITELIST]: {0}".format(g_milter_x509_ip_whitelist))
   logging.info("ENV[MILTER_X509_ENABLED]: {0}".format(g_milter_x509_enabled))
   if 'MILTER_POLICY_SOURCE' in os.environ:
     g_milter_policy_source = os.environ['MILTER_POLICY_SOURCE']

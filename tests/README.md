@@ -19,6 +19,7 @@ export MILTER_DKIM_ENABLED=yepp
 export MILTER_TRUSTED_AUTHSERVID=my-auth-serv-id
 export MILTER_X509_ENABLED=yepp
 export MILTER_X509_TRUSTED_CN=mail.protection.outlook.com
+export MILTER_X509_IP_WHITELIST='127.0.0.1,::1'
 export MILTER_ADD_HEADER=yepp
 export MILTER_AUTHSERVID=my-auth-serv-id
 ```
