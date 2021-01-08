@@ -44,6 +44,7 @@ services:
       #MILTER_SOCKET: 'inet:123456@0.0.0.0'
       MILTER_POLICY_FILE: '/data/policy.json'
       MILTER_DKIM_ENABLED: 'some_value'
+      MILTER_DKIM_ALIGNMENT_REQUIRED: 'True'
       MILTER_TRUSTED_AUTHSERVID: 'my-auth-serv-id'
       MILTER_X509_ENABLED: 'some_value'
       MILTER_X509_TRUSTED_CN: 'mail.protection.outlook.com'

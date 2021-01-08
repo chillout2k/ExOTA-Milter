@@ -16,6 +16,7 @@ export LOG_LEVEL=debug
 export MILTER_SOCKET=/tmp/exota-milter
 export MILTER_POLICY_FILE=tests/policy.json
 export MILTER_DKIM_ENABLED=yepp
+export MILTER_DKIM_ALIGNMENT_REQUIRED=True
 export MILTER_TRUSTED_AUTHSERVID=my-auth-serv-id
 export MILTER_X509_ENABLED=yepp
 export MILTER_X509_TRUSTED_CN=mail.protection.outlook.com
