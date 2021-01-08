@@ -27,6 +27,8 @@ g_milter_tmpfail_message = 'Service temporarily not available! Please try again 
 g_loglevel = logging.INFO
 # ENV[MILTER_DKIM_ENABLED]
 g_milter_dkim_enabled = False
+# ENV[MILTER_DKIM_ALIGNMENT_REQUIRED]
+g_milter_dkim_alignment_required = False
 # ENV[MILTER_TRUSTED_AUTHSERVID]
 g_milter_trusted_authservid = 'invalid'
 # ENV[MILTER_POLICY_SOURCE]
@@ -350,6 +352,11 @@ class ExOTAMilter(Milter.Base):
           logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
             "/EOM: No aligned DKIM signatures found!"
           )
+          if g_milter_dkim_alignment_required:
+            return self.smfir_reject(
+              queue_id = self.getsymval('i'),
+              reason = 'DKIM alignment required!'
+            )
       else:
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
           "/EOM: No valid DKIM authentication result found"
@@ -449,6 +456,17 @@ if __name__ == "__main__":
     else:
       logging.error("ENV[MILTER_TRUSTED_AUTHSERVID] is mandatory!")
       sys.exit(1)
+    if 'MILTER_DKIM_ALIGNMENT_REQUIRED' in os.environ:
+      if os.environ['MILTER_DKIM_ALIGNMENT_REQUIRED'] == 'True':
+        g_milter_dkim_alignment_required = True
+      elif os.environ['MILTER_DKIM_ALIGNMENT_REQUIRED'] == 'False':
+        g_milter_dkim_alignment_required = False
+      else:
+        logging.error("ENV[MILTER_DKIM_ALIGNMENT_REQUIRED] must be a boolean type: 'True' or 'False'!")
+        sys.exit(1)
+    logging.info("ENV[MILTER_DKIM_ALIGNMENT_REQUIRED]: {0}".format(
+      g_milter_dkim_alignment_required
+    ))
   logging.info("ENV[MILTER_DKIM_ENABLED]: {0}".format(g_milter_dkim_enabled))
   if 'MILTER_X509_ENABLED' in os.environ:
     g_milter_x509_enabled = True

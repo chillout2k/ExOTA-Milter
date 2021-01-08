@@ -30,10 +30,10 @@ if mt.getreply(conn) ~= SMFIR_CONTINUE then
 end
 
 -- HEADER
-if mt.header(conn, "fRoM", '"Blah Blubb" <O365ConnectorValidation@yad.onmicrosoft.com>') ~= nil then
+if mt.header(conn, "fRoM", '"Blah Blubb" <O365ConnectorValidation@yad.onmicrosoft.comx>') ~= nil then
   error "mt.header(From) failed"  
 end
-if mt.header(conn, "aaa-resent-fRoM", '"Blah Blubb" <blah@yad.onmicrosoft.COMa>') ~= nil then
+if mt.header(conn, "resent-fRoM", '"Blah Blubb" <blah@yad.onmicrosoft.COM>') ~= nil then
   error "mt.header(From) failed"  
 end
 if mt.header(conn, "x-mS-EXCHANGE-crosstenant-id", "1234abcd-18c5-45e8-88de-123456789abc") ~= nil then
@@ -51,7 +51,7 @@ end
 if mt.header(conn, "Authentication-Results", "my-auth-serv-id;\n  exota=pass") ~= nil then
   error "mt.header(Subject) failed"  
 end
-if mt.header(conn, "Authentication-RESULTS", "my-auth-serv-id;\n  dkim=pass header.d=yad.onmicrosoft.comx header.s=selector1-yad-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
+if mt.header(conn, "Authentication-RESULTS", "my-auth-serv-id;\n  dkim=pass header.d=yad.onmicrosoft.com-blubb header.s=selector1-yad-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
   error "mt.header(Subject) failed"  
 end
 if mt.header(conn, "Authentication-Results", "my-auth-serv-id;\n  dkim=fail header.d=yad.onmicrosoft.com header.s=selector2-asdf header.b=mmmjFpv8") ~= nil then
