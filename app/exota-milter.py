@@ -28,7 +28,7 @@ g_loglevel = logging.INFO
 # ENV[MILTER_DKIM_ENABLED]
 g_milter_dkim_enabled = False
 # ENV[MILTER_DKIM_ALIGNMENT_REQUIRED]
-g_milter_dkim_alignment_required = True
+g_milter_dkim_alignment_required = False
 # ENV[MILTER_TRUSTED_AUTHSERVID]
 g_milter_trusted_authservid = 'invalid'
 # ENV[MILTER_POLICY_SOURCE]
