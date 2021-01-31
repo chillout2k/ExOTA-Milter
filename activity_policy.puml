@@ -33,6 +33,19 @@ if (Policy found?) then (yes)
         :REJECT;
         stop
       endif
+      if (Milter: DKIM alignment checking enabled?) then (yes)
+        if (Policy has DKIM-alignment enabled?) then (yes)
+          :Checking if DKIM-signature is aligned;
+          note left: DKIM SDID must equal to RFC5322.from_domain!
+          if (Is DKIM aligned?) then (yes)
+          else (no)
+            :REJECT;
+            stop
+          endif
+        else (no)
+        endif
+      else (no)
+      endif
     else (no)
     endif
   else (no)
