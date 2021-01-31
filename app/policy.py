@@ -16,7 +16,15 @@ class ExOTAPolicyInvalidException(ExOTAPolicyException):
 class ExOTAPolicy():
   def __init__(self, policy_dict):
     self.tenant_id = policy_dict['tenant_id']
-    self.dkim_enabled = policy_dict['dkim_enabled']
+    if 'dkim_enabled' in policy_dict:
+      self.dkim_enabled = policy_dict['dkim_enabled']
+    else:
+      self.dkim_enabled = True
+    if 'dkim_alignment_required' in policy_dict:
+      self.dkim_alignment_required = policy_dict['dkim_alignment_required']
+    else:
+      # DKIM alignment per policy enabled by default
+      self.dkim_alignment_required = True
 
   def get_tenant_id(self):
     return self.tenant_id
@@ -24,31 +32,42 @@ class ExOTAPolicy():
   def is_dkim_enabled(self):
     return self.dkim_enabled
 
+  def is_dkim_alignment_required(self):
+    return self.dkim_alignment_required
+
   @staticmethod
   def check_policy(policy_dict):
     if 'tenant_id' not in policy_dict:
       raise ExOTAPolicyInvalidException(
-        "Policy must have a 'tenant_id' attribute!"
+        "Policy must have a 'tenant_id' key!"
       )
-    else:
-      try:
-        UUID(policy_dict['tenant_id'])
-      except ValueError as e:
+    for policy_key in policy_dict:
+      if policy_key == 'tenant_id':
+        try:
+          UUID(policy_dict[policy_key])
+        except ValueError as e:
+          raise ExOTAPolicyInvalidException(
+            "Invalid 'tenant_id': {0}".format(str(e))
+          ) from e
+        except Exception as e:
+          raise ExOTAPolicyInvalidException(
+            "Invalid 'tenant_id': {0}".format(traceback.format_exc())
+          ) from e
+      elif policy_key == 'dkim_enabled':
+        if not isinstance(policy_dict[policy_key], bool):
+          raise ExOTAPolicyInvalidException(
+            "'dkim_enabled'({0}) must be boolean!".format(policy_dict['dkim_enabled'])
+          )
+      elif policy_key == 'dkim_alignment_required':
+        if not isinstance(policy_dict[policy_key], bool):
+          raise ExOTAPolicyInvalidException(
+            "'dkim_alignment_required'({0}) must be boolean!".format(
+              policy_dict[policy_key]
+            )
+          )
+      else:
         raise ExOTAPolicyInvalidException(
-          "Invalid 'tenant_id': {0}".format(str(e))
-        ) from e
-      except Exception as e:
-        raise ExOTAPolicyInvalidException(
-          "Invalid 'tenant_id': {0}".format(traceback.format_exc())
-        ) from e
-    if 'dkim_enabled' not in policy_dict:
-      raise ExOTAPolicyInvalidException(
-        "Policy must have a 'dkim_enabled' attribute!"
-      )
-    else:
-      if not isinstance(policy_dict['dkim_enabled'], bool):
-        raise ExOTAPolicyInvalidException(
-          "'dkim_enabled'({0}) must be boolean!".format(policy_dict['dkim_enabled'])
+          "Invalid policy_key '{0}'!".format(policy_key)
         )
 
 class ExOTAPolicyBackend():
