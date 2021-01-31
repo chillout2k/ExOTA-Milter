@@ -353,10 +353,17 @@ class ExOTAMilter(Milter.Base):
             "/EOM: No aligned DKIM signatures found!"
           )
           if g_milter_dkim_alignment_required:
-            return self.smfir_reject(
-              queue_id = self.getsymval('i'),
-              reason = 'DKIM alignment required!'
-            )
+            if policy.is_dkim_alignment_required() == False:
+              logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+                "/EOM: Policy overrides DKIM alignment requirement to '{0}'!".format(
+                  policy.is_dkim_alignment_required()
+                )
+              )
+            else:
+              return self.smfir_reject(
+                queue_id = self.getsymval('i'),
+                reason = 'DKIM alignment required!'
+              )
       else:
         logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
           "/EOM: No valid DKIM authentication result found"
