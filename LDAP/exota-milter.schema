@@ -1,0 +1,41 @@
+# https://www.iana.org/assignments/enterprise-numbers/enterprise-numbers
+# DC IT-Consulting
+# Dominik Chilla
+#
+# OID prefix: 1.3.6.1.4.1.53501
+#
+# ExOTA-Milter: 1.3.6.1.4.1.53501.3
+# Attributes:   1.3.6.1.4.1.53501.3.1
+# Objects:      1.3.6.1.4.1.53501.3.2
+
+### Attributes
+attributetype ( 1.3.6.1.4.1.53501.3.1.1
+  NAME 'exotaMilterTenantId'
+  DESC 'ExOTA-Milter Tenant-ID'
+  EQUALITY uuidMatch
+  ORDERING uuidOrderingMatch
+  SYNTAX 1.3.6.1.1.16.1
+  SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.4.1.53501.3.1.2
+  NAME 'exotaMilterDkimEnabled'
+  DESC 'ExOTA-Milter DKIM enabled flag'
+  EQUALITY booleanMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 
+  SINGLE-VALUE )
+
+attributetype ( 1.3.6.1.4.1.53501.3.1.3
+  NAME 'exotaMilterDkimAlignmentRequired'
+  DESC 'ExOTA-Milter DKIM alignment required flag'
+  EQUALITY booleanMatch
+  SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 
+  SINGLE-VALUE )
+
+### Objects
+objectclass ( 1.3.6.1.4.1.53501.3.2.1
+  NAME 'exotaMilterPolicy' AUXILIARY
+  DESC 'ExOTA-Milter policy object'
+  SUP top
+  MAY ( exotaMilterTenantId $ 
+        exotaMilterDkimEnabled $ 
+        exotaMilterDkimAlignmentRequired ))

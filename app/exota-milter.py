@@ -11,8 +11,13 @@ import authres
 import json
 from policy import (
   ExOTAPolicyException, ExOTAPolicyNotFoundException, 
-  ExOTAPolicyBackendJSON, ExOTAPolicy
+  ExOTAPolicyBackendJSON, ExOTAPolicyBackendLDAP, ExOTAPolicy,
+  ExOTAPolicyInvalidException, ExOTAPolicyBackendException
 )
+from ldap3 import (
+  Server, Connection, NONE, set_config_parameter
+)
+from ldap3.core.exceptions import LDAPException
 
 # Globals with defaults. Can/should be modified by ENV-variables on startup.
 # ENV[MILTER_NAME]
@@ -45,10 +50,28 @@ g_milter_x509_ip_whitelist = ['127.0.0.1','::1']
 g_milter_add_header = False
 # ENV[MILTER_AUTHSERVID]
 g_milter_authservid = None
+# ENV[MILTER_LDAP_SERVER_URI]
+g_milter_ldap_server_uri = ''
+# ENV[MILTER_LDAP_BINDDN]
+g_milter_ldap_binddn = ''
+# ENV[MILTER_LDAP_BINDPW]
+g_milter_ldap_bindpw = ''
+# ENV[MILTER_LDAP_SEARCH_BASE]
+g_milter_ldap_search_base = ''
+# ENV[MILTER_LDAP_QUERY]
+g_milter_ldap_query = ''
+# ENV[MILTER_LDAP_TENANT_ID_ATTR]
+g_milter_ldap_tenant_id_attr = 'exotaMilterTenantId'
+# ENV[MILTER_LDAP_DKIM_ENABLED_ATTR]
+g_milter_ldap_dkim_enabled_attr = 'exotaMilterDkimEnabled'
+# ENV[MILTER_LDAP_DKIM_ALIGNMENT_REQIRED_ATTR]
+g_milter_ldap_dkim_alignment_required_attr = 'exotaMilterDkimAlignmentRequired'
+
 
 # Another globals
 g_policy_backend = None
 g_re_domain = re.compile(r'^.*@(\S+)$', re.IGNORECASE)
+g_milter_ldap_conn = None
 
 class ExOTAMilter(Milter.Base):
   # Each new connection is handled in an own thread
@@ -90,6 +113,20 @@ class ExOTAMilter(Milter.Base):
     )
     self.setreply('550','5.7.1', message)
     return Milter.REJECT
+  
+  def smfir_tempfail(self, **kwargs):
+    message = g_milter_tmpfail_message
+    if 'message' in kwargs:
+      message = kwargs['message']
+    if 'queue_id' in kwargs:
+      message = "queue_id: {0} - {1}".format(kwargs['queue_id'], message)
+    if 'reason' in kwargs:
+      message = "{0} - reason: {1}".format(message, kwargs['reason'])
+    logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+      ": milter_action=tempfail message={0}".format(message)
+    )
+    self.setreply('450','4.7.1', message)
+    return Milter.TEMPFAIL
   
   def smfir_continue(self):
     return Milter.CONTINUE
@@ -267,6 +304,26 @@ class ExOTAMilter(Milter.Base):
           self.hdr_from_domain
         )
       )
+    except ExOTAPolicyBackendException as e:
+      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/EOM: Policy backend problem: {0}".format(e.message)
+      )
+      return self.smfir_tempfail(
+        queue_id = self.getsymval('i'),
+        reason = "Policy backend problem"
+      )
+    except ExOTAPolicyInvalidException as e:
+      logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/EOM: Invalid policy for 5322.from_domain={0}: {1}".format(
+          self.hdr_from_domain, e.message
+        )
+      )
+      return self.smfir_reject(
+        queue_id = self.getsymval('i'),
+        reason = "Invalid policy for 5322.from_domain {0}".format(
+          self.hdr_from_domain
+        )
+      )
     except (ExOTAPolicyException, ExOTAPolicyNotFoundException) as e:
       logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: 5322.from: {0}".format(e.message)
@@ -283,6 +340,26 @@ class ExOTAMilter(Milter.Base):
           self.forwarded = True
           logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
             "/EOM: Forwarded message -> Policy for 5322.resent_from_domain={0} found.".format(
+              self.hdr_resent_from_domain
+            )
+          )
+        except ExOTAPolicyBackendException as e:
+          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+            "/EOM: Policy backend problem: {0}".format(e.message)
+          )
+          return self.smfir_tempfail(
+            queue_id = self.getsymval('i'),
+            reason = "Policy backend problem"
+          )
+        except ExOTAPolicyInvalidException as e:
+          logging.info(self.mconn_id + "/" + str(self.getsymval('i')) +
+            "/EOM: Invalid policy for 5322.resent_from_domain={0}: {1}".format(
+              self.hdr_resent_from_domain, e.message
+            )
+          )
+          return self.smfir_reject(
+            queue_id = self.getsymval('i'),
+            reason = "Invalid policy for 5322.resent_from_domain {0}".format(
               self.hdr_resent_from_domain
             )
           )
@@ -485,9 +562,6 @@ if __name__ == "__main__":
       g_milter_x509_ip_whitelist = g_milter_x509_ip_whitelist.split(',')
     logging.info("ENV[MILTER_X509_IP_WHITELIST]: {0}".format(g_milter_x509_ip_whitelist))
   logging.info("ENV[MILTER_X509_ENABLED]: {0}".format(g_milter_x509_enabled))
-  if 'MILTER_POLICY_SOURCE' in os.environ:
-    g_milter_policy_source = os.environ['MILTER_POLICY_SOURCE']
-  logging.info("ENV[MILTER_POLICY_SOURCE]: {0}".format(g_milter_policy_source))
   if 'MILTER_ADD_HEADER' in os.environ:
     g_milter_add_header = True
     if 'MILTER_AUTHSERVID' in os.environ:
@@ -499,6 +573,9 @@ if __name__ == "__main__":
       logging.error("ENV[MILTER_AUTHSERVID] is mandatory!")
       sys.exit(1)
   logging.info("ENV[MILTER_ADD_HEADER]: {0}".format(g_milter_add_header))
+  if 'MILTER_POLICY_SOURCE' in os.environ:
+    g_milter_policy_source = os.environ['MILTER_POLICY_SOURCE']
+  logging.info("ENV[MILTER_POLICY_SOURCE]: {0}".format(g_milter_policy_source))
   if g_milter_policy_source == 'file':
     if 'MILTER_POLICY_FILE' in os.environ:
       g_milter_policy_file = os.environ['MILTER_POLICY_FILE']
@@ -513,8 +590,62 @@ if __name__ == "__main__":
       logging.error("ENV[MILTER_POLICY_FILE] is mandatory!")
       sys.exit(1)
   elif g_milter_policy_source == 'ldap':
-    logging.debug("LDAP-Backend not supported yet!")
-    sys.exit(1)
+    if 'MILTER_LDAP_SERVER_URI' not in os.environ:
+      logging.error("ENV[MILTER_LDAP_SERVER_URI] is mandatory!")
+      sys.exit(1)
+    g_milter_ldap_server_uri = os.environ['MILTER_LDAP_SERVER_URI']
+    if 'MILTER_LDAP_BINDDN' not in os.environ:
+      logging.info("ENV[MILTER_LDAP_BINDDN] not set! Continue...")
+    else:
+      g_milter_ldap_binddn = os.environ['MILTER_LDAP_BINDDN']
+    if 'MILTER_LDAP_BINDPW' not in os.environ:
+      logging.info("ENV[MILTER_LDAP_BINDPW] not set! Continue...")
+    else:
+      g_milter_ldap_bindpw = os.environ['MILTER_LDAP_BINDPW']
+    if 'MILTER_LDAP_SEARCH_BASE' not in os.environ:
+      logging.error("ENV[MILTER_LDAP_SEARCH_BASE] is mandatory!")
+      sys.exit(1)
+    g_milter_ldap_search_base = os.environ['MILTER_LDAP_SEARCH_BASE']
+    if 'MILTER_LDAP_QUERY' not in os.environ:
+      logging.error("ENV[MILTER_LDAP_QUERY] is mandatory!")
+      sys.exit(1)
+    g_milter_ldap_query = os.environ['MILTER_LDAP_QUERY']
+    if 'MILTER_LDAP_TENANT_ID_ATTR' in os.environ:
+      g_milter_ldap_tenant_id_attr = os.environ['MILTER_LDAP_TENANT_ID_ATTR']
+    if 'MILTER_LDAP_DKIM_ENABLED_ATTR' in os.environ:
+      g_milter_ldap_dkim_enabled_attr = os.environ['MILTER_LDAP_DKIM_ENABLED_ATTR']
+    if 'MILTER_LDAP_DKIM_ALIGNMENT_REQUIRED_ATTR' in os.environ:
+      g_milter_ldap_dkim_alignment_required_attr = os.environ['MILTER_LDAP_DKIM_ALIGNMENT_REQUIRED_ATTR']
+    try:
+      set_config_parameter("RESTARTABLE_SLEEPTIME", 2)
+      set_config_parameter("RESTARTABLE_TRIES", True)
+      set_config_parameter('DEFAULT_SERVER_ENCODING', 'utf-8')
+      set_config_parameter('DEFAULT_CLIENT_ENCODING', 'utf-8')
+      server = Server(g_milter_ldap_server_uri, get_info=NONE)
+      g_milter_ldap_conn = Connection(server,
+        g_milter_ldap_binddn,
+        g_milter_ldap_bindpw,
+        auto_bind=True, 
+        raise_exceptions=True,
+        client_strategy='RESTARTABLE'
+      )
+      logging.info("LDAP-Connection established")
+      try:
+        g_policy_backend = ExOTAPolicyBackendLDAP({
+          'ldap_conn': g_milter_ldap_conn,
+          'ldap_search_base': g_milter_ldap_search_base,
+          'ldap_query': g_milter_ldap_query,
+          'ldap_tenant_id_attr': g_milter_ldap_tenant_id_attr,
+          'ldap_dkim_enabled_attr': g_milter_ldap_dkim_enabled_attr,
+          'ldap_dkim_alignment_required_attr': g_milter_ldap_dkim_alignment_required_attr
+        })
+        logging.info("LDAP policy backend initialized")
+      except ExOTAPolicyException as e:
+        logging.error("Policy backend error: {0}".format(e.message))
+        sys.exit(1)
+    except LDAPException as e:
+      print("LDAP-Exception: " + traceback.format_exc())
+      sys.exit(1)
   else:
     logging.debug("Unsupported backend: {0}!".format(g_milter_policy_source))
     sys.exit(1)
