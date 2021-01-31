@@ -80,6 +80,11 @@ Authentication-Results: trusted.dkim.validating.relay;
 [...]
 ```
 
+## More authentic with DKIM alignment and message forwarding
+From the point of view of a postmaster, message forwarding is a kind of nightmare. If DKIM alignment is enabled the DKIM SDID (Signers Domain ID = `header.d` field of *Authentication-Results* header) must be equivalent to the RFC5322.from_domain. In this mode the **EXOTA-Milter** operates in the most secure way, but with limitations in terms of usability. With DKIM alignment enabled [traditional email forwarding](https://docs.microsoft.com/de-de/microsoft-365/admin/email/configure-email-forwarding?view=o365-worldwide) cannot be guaranteed. In this case the exchange online system preserves the original RFC5322.from header and signs the forwarded email with the main tenants SDID, e.g. *tenantdomain.onmicrosoft.com*. An email that was forwarded in that way cannot pass the DKIM alignment, because the RFC5322.from_domain will never match the DKIM SDID. Further there is no policy for the RFC5322.from_domain!
+
+Nevertheless, don´t put your head in the sand, there is a way out of this dilemma! Just use outlook rules to forward messages, which is described [here](https://support.microsoft.com/en-us/office/use-rules-to-automatically-forward-messages-45aa9664-4911-4f96-9663-ece42816d746). In this case the original content gets forwarded within a new message, that carries the correct RFC5322.from as well as the correct DKIM SDID! Messages forwarded in such way will always pass DKIM alignment -> mission accomplished! Don´t forget to tell your end users ;)
+
 ## X-MS-Exchange-CrossTenant-Id header (policy binding)
 Further each Microsoft Exchange-Online tenant has a unique tenant-ID in form of a UUID ([RFC 4122](https://tools.ietf.org/html/rfc4122)). **ExOTA-Milter** extracts the tenant-ID from the *X-MS-Exchange-CrossTenant-Id* email header and uses it as a *mandatory* authentication factor.
 ```
