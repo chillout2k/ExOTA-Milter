@@ -102,7 +102,7 @@ Further each Microsoft Exchange-Online tenant has a unique tenant-ID in form of 
 X-MS-Exchange-CrossTenant-Id: <UUID-of-tenant>
 [...]
 ```
-At last the **ExOTA-Milter** needs an additional policy (JSON file), that provides a mapping of *sender-domain <-> tenant-id* and if DKIM-signatures must be taken under consideration or not. The JSON policy file itself looks like this:
+At last the **ExOTA-Milter** needs an additional policy (currently as JSON file or LDAP server), that provides a mapping of *sender-domain <-> tenant-id* and if DKIM-signatures must be taken under consideration or not. The JSON policy file itself looks like this:
 ```
 {
   "yad.onmicrosoft.com": {
@@ -112,8 +112,6 @@ At last the **ExOTA-Milter** needs an additional policy (JSON file), that provid
   }
 }
 ```
-Actually I´m also working on a LDAP-based version as policy backend.
-
 # The solution
 So, *how can an Exchange-Online user/tenant be identified by a third party smarthost?*
 
@@ -126,6 +124,9 @@ Finally it´s the combination of all of the above discussed aspects which may re
 * matching for tenant-id provided in *X-MS-Exchange-CrossTenant-Id* header (ExOTA-Milter)
 
 ![Activity policy](http://www.plantuml.com/plantuml/png/5SKn3W8W30NGg-W1f8cZcuEZSN4tM8aq5ahAhyhjZMzvM-ciyIZXkgd0c0SYpv_q5DIunopErb4w4biZhg9gWVsBJj_BzRWxYw8ujJp_POQy1UisJ8LN6j7q1m00)
+
+# How about using LDAP as policy backend?
+For small setups, with not so many domains, the JSON-file policy backend (default) may be sufficient. If you´re an email service provider (ESP) maintaining a lot of customer domains in a LDAP server, you may want to use the LDAP backend instead. Details regarding the LDAP backend can be found [in the LDAP readme](LDAP/README.md).
 
 # How about a docker/OCI image?
 ## Using prebuilt images from [dockerhub](https://hub.docker.com/)

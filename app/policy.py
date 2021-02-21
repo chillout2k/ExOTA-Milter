@@ -46,6 +46,10 @@ class ExOTAPolicy():
       raise ExOTAPolicyInvalidException(
         "Policy must have a 'tenant_id' key!"
       )
+    if policy_dict['tenant_id'] is None:
+      raise ExOTAPolicyInvalidException(
+        "'tenant_id' needs a value!"
+      )
     for policy_key in policy_dict:
       if policy_key == 'tenant_id':
         try:
@@ -100,11 +104,11 @@ class ExOTAPolicyBackendJSON(ExOTAPolicyBackend):
               "Policy {0} is invalid: {1}".format(policy, e.message)
             ) from e
     except json.decoder.JSONDecodeError as e:
-      raise ExOTAPolicyException(
+      raise ExOTAPolicyBackendException(
         "JSON-error in policy file: " + str(e)
       ) from e
     except Exception as e:
-      raise ExOTAPolicyException(
+      raise ExOTAPolicyBackendException(
         "Error reading policy file: " + traceback.format_exc()
       ) from e
   
@@ -123,7 +127,7 @@ class ExOTAPolicyBackendJSON(ExOTAPolicyBackend):
       ) from e
 
 ########## LDAP
-class ExOTAPolicyBackendLDAP(ExOTAPolicyBackendJSON):
+class ExOTAPolicyBackendLDAP(ExOTAPolicyBackend):
   type = 'ldap'
   def __init__(self, ldap_config):
     try:
@@ -134,7 +138,7 @@ class ExOTAPolicyBackendLDAP(ExOTAPolicyBackendJSON):
       self.dkim_enabled_attr = ldap_config['ldap_dkim_enabled_attr']
       self.dkim_alignment_required_attr = ldap_config['ldap_dkim_alignment_required_attr']
     except Exception as e:
-      raise ExOTAPolicyException(
+      raise ExOTAPolicyBackendException(
         "An error occured while initializing LDAP backend: " + traceback.format_exc()
       ) from e
 
@@ -167,7 +171,7 @@ class ExOTAPolicyBackendLDAP(ExOTAPolicyBackendJSON):
             policy_dict['dkim_alignment_required'] = False
         ExOTAPolicy.check_policy(policy_dict)
         return ExOTAPolicy(policy_dict)
-      if len(self.conn.entries) > 1:
+      elif len(self.conn.entries) > 1:
         raise ExOTAPolicyInvalidException(
           "Multiple policies found for domain={0}!".format(from_domain)
         )
@@ -176,6 +180,4 @@ class ExOTAPolicyBackendLDAP(ExOTAPolicyBackendJSON):
           "Policy for domain={0} not found".format(from_domain)
         )
     except LDAPException as e:
-      raise ExOTAPolicyBackendException(
-        "asdf"
-      ) from e
+      raise ExOTAPolicyBackendException(e) from e

@@ -52,6 +52,8 @@ g_milter_add_header = False
 g_milter_authservid = None
 # ENV[MILTER_LDAP_SERVER_URI]
 g_milter_ldap_server_uri = ''
+# ENV[MILTER_LDAP_RECEIVE_TIMEOUT]
+g_milter_ldap_receive_timeout = 5
 # ENV[MILTER_LDAP_BINDDN]
 g_milter_ldap_binddn = ''
 # ENV[MILTER_LDAP_BINDPW]
@@ -594,6 +596,15 @@ if __name__ == "__main__":
       logging.error("ENV[MILTER_LDAP_SERVER_URI] is mandatory!")
       sys.exit(1)
     g_milter_ldap_server_uri = os.environ['MILTER_LDAP_SERVER_URI']
+    if 'MILTER_LDAP_RECEIVE_TIMEOUT' in os.environ:
+      try:
+        g_milter_ldap_receive_timeout = int(os.environ['MILTER_LDAP_RECEIVE_TIMEOUT'])
+      except ValueError:
+        logging.error("ENV[MILTER_LDAP_RECEIVE_TIMEOUT] must be an integer!")
+        sys.exit(1)  
+    logging.info("ENV[MILTER_LDAP_RECEIVE_TIMEOUT]: {0}".format(
+      g_milter_ldap_receive_timeout
+    ))
     if 'MILTER_LDAP_BINDDN' not in os.environ:
       logging.info("ENV[MILTER_LDAP_BINDDN] not set! Continue...")
     else:
@@ -617,17 +628,18 @@ if __name__ == "__main__":
     if 'MILTER_LDAP_DKIM_ALIGNMENT_REQUIRED_ATTR' in os.environ:
       g_milter_ldap_dkim_alignment_required_attr = os.environ['MILTER_LDAP_DKIM_ALIGNMENT_REQUIRED_ATTR']
     try:
-      set_config_parameter("RESTARTABLE_SLEEPTIME", 2)
-      set_config_parameter("RESTARTABLE_TRIES", True)
+      set_config_parameter("RESTARTABLE_SLEEPTIME", 1)
+      set_config_parameter("RESTARTABLE_TRIES", 2)
       set_config_parameter('DEFAULT_SERVER_ENCODING', 'utf-8')
       set_config_parameter('DEFAULT_CLIENT_ENCODING', 'utf-8')
       server = Server(g_milter_ldap_server_uri, get_info=NONE)
       g_milter_ldap_conn = Connection(server,
         g_milter_ldap_binddn,
         g_milter_ldap_bindpw,
-        auto_bind=True, 
-        raise_exceptions=True,
-        client_strategy='RESTARTABLE'
+        auto_bind = True, 
+        raise_exceptions = True,
+        client_strategy = 'RESTARTABLE',
+        receive_timeout = g_milter_ldap_receive_timeout
       )
       logging.info("LDAP-Connection established")
       try:
@@ -644,7 +656,7 @@ if __name__ == "__main__":
         logging.error("Policy backend error: {0}".format(e.message))
         sys.exit(1)
     except LDAPException as e:
-      print("LDAP-Exception: " + traceback.format_exc())
+      print("LDAP-Exception: {0}".format(e))
       sys.exit(1)
   else:
     logging.debug("Unsupported backend: {0}!".format(g_milter_policy_source))
