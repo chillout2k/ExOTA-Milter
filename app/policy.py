@@ -2,6 +2,7 @@ import json
 import traceback
 import re
 from uuid import UUID
+from ldap3.core.exceptions import LDAPException
 
 class ExOTAPolicyException(Exception):
   def __init__(self, message):
@@ -12,6 +13,10 @@ class ExOTAPolicyNotFoundException(ExOTAPolicyException):
 
 class ExOTAPolicyInvalidException(ExOTAPolicyException):
   pass
+
+class ExOTAPolicyBackendException(Exception):
+  def __init__(self, message):
+    self.message = message
 
 class ExOTAPolicy():
   def __init__(self, policy_dict):
@@ -40,6 +45,10 @@ class ExOTAPolicy():
     if 'tenant_id' not in policy_dict:
       raise ExOTAPolicyInvalidException(
         "Policy must have a 'tenant_id' key!"
+      )
+    if policy_dict['tenant_id'] is None:
+      raise ExOTAPolicyInvalidException(
+        "'tenant_id' needs a value!"
       )
     for policy_key in policy_dict:
       if policy_key == 'tenant_id':
@@ -95,11 +104,11 @@ class ExOTAPolicyBackendJSON(ExOTAPolicyBackend):
               "Policy {0} is invalid: {1}".format(policy, e.message)
             ) from e
     except json.decoder.JSONDecodeError as e:
-      raise ExOTAPolicyException(
+      raise ExOTAPolicyBackendException(
         "JSON-error in policy file: " + str(e)
       ) from e
     except Exception as e:
-      raise ExOTAPolicyException(
+      raise ExOTAPolicyBackendException(
         "Error reading policy file: " + traceback.format_exc()
       ) from e
   
@@ -118,6 +127,57 @@ class ExOTAPolicyBackendJSON(ExOTAPolicyBackend):
       ) from e
 
 ########## LDAP
-class ExOTAPolicyBackendLDAP(ExOTAPolicyBackendJSON):
+class ExOTAPolicyBackendLDAP(ExOTAPolicyBackend):
   type = 'ldap'
-  pass
+  def __init__(self, ldap_config):
+    try:
+      self.conn = ldap_config['ldap_conn']
+      self.search_base = ldap_config['ldap_search_base']
+      self.query = ldap_config['ldap_query']
+      self.tenant_id_attr = ldap_config['ldap_tenant_id_attr']
+      self.dkim_enabled_attr = ldap_config['ldap_dkim_enabled_attr']
+      self.dkim_alignment_required_attr = ldap_config['ldap_dkim_alignment_required_attr']
+    except Exception as e:
+      raise ExOTAPolicyBackendException(
+        "An error occured while initializing LDAP backend: " + traceback.format_exc()
+      ) from e
+
+  def get(self, from_domain):
+    self.query = self.query.replace('%d', from_domain)
+    try:
+      self.conn.search(
+        self.search_base,
+        self.query,
+        attributes=[
+          self.tenant_id_attr,
+          self.dkim_enabled_attr,
+          self.dkim_alignment_required_attr
+        ]
+      )
+      if len(self.conn.entries) == 1:
+        entry = self.conn.entries[0]
+        policy_dict = {}
+        if self.tenant_id_attr in entry:
+          policy_dict['tenant_id'] = entry[self.tenant_id_attr].value
+        if self.dkim_enabled_attr in entry:
+          if entry[self.dkim_enabled_attr].value == 'TRUE':
+            policy_dict['dkim_enabled'] = True
+          else:
+            policy_dict['dkim_enabled'] = False
+        if self.dkim_alignment_required_attr in entry:
+          if entry[self.dkim_alignment_required_attr].value == 'TRUE':
+            policy_dict['dkim_alignment_required'] = True
+          else:
+            policy_dict['dkim_alignment_required'] = False
+        ExOTAPolicy.check_policy(policy_dict)
+        return ExOTAPolicy(policy_dict)
+      elif len(self.conn.entries) > 1:
+        raise ExOTAPolicyInvalidException(
+          "Multiple policies found for domain={0}!".format(from_domain)
+        )
+      else:
+        raise ExOTAPolicyNotFoundException(
+          "Policy for domain={0} not found".format(from_domain)
+        )
+    except LDAPException as e:
+      raise ExOTAPolicyBackendException(e) from e
