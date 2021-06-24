@@ -302,8 +302,8 @@ class ExOTAMilter(Milter.Base):
     try:
       policy = g_policy_backend.get(self.hdr_from_domain)
       logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: Policy for 5322.from_domain={0} fetched from backend".format(
-          self.hdr_from_domain
+        "/EOM: Policy for 5322.from_domain={0} fetched from backend: *{1}*".format(
+          self.hdr_from_domain, str(policy)
         )
       )
     except ExOTAPolicyBackendException as e:
@@ -335,8 +335,8 @@ class ExOTAMilter(Milter.Base):
         try:
           policy = g_policy_backend.get(self.hdr_resent_from_domain)
           logging.debug(self.mconn_id + "/" + str(self.getsymval('i')) +
-            "/EOM: Policy for 5322.resent_from_domain={0} fetched from backend".format(
-              self.hdr_resent_from_domain
+            "/EOM: Policy for 5322.resent_from_domain={0} fetched from backend: *{1}*".format(
+              self.hdr_resent_from_domain, str(policy)
             )
           )
           self.forwarded = True

@@ -30,6 +30,11 @@ class ExOTAPolicy():
     else:
       # DKIM alignment per policy enabled by default
       self.dkim_alignment_required = True
+  
+  def __str__(self):
+    return "Tenant-ID={0}, DKIM={1}, DKIM-alignment-required={2}". format(
+      self.tenant_id, self.dkim_enabled, self.dkim_alignment_required 
+    )
 
   def get_tenant_id(self):
     return self.tenant_id
