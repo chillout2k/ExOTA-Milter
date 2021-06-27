@@ -3,6 +3,10 @@ import traceback
 import re
 from uuid import UUID
 from ldap3.core.exceptions import LDAPException
+from ldap3 import (
+  Server, Connection, NONE, set_config_parameter
+)
+from logger import log_debug
 
 class ExOTAPolicyException(Exception):
   def __init__(self, message):
@@ -135,30 +139,64 @@ class ExOTAPolicyBackendJSON(ExOTAPolicyBackend):
 class ExOTAPolicyBackendLDAP(ExOTAPolicyBackend):
   type = 'ldap'
   def __init__(self, ldap_config):
+    log_debug("init ldap_query: {0}".format(ldap_config['ldap_query']))
     try:
-      self.conn = ldap_config['ldap_conn']
+      self.ldap_server_uri = ldap_config['ldap_server_uri']
+      self.ldap_binddn = ldap_config['ldap_binddn']
+      self.ldap_bindpw = ldap_config['ldap_bindpw']
       self.search_base = ldap_config['ldap_search_base']
-      self.query = ldap_config['ldap_query']
+      self.ldap_receive_timeout = ldap_config['ldap_receive_timeout']
+      self.query_template = ldap_config['ldap_query']
       self.tenant_id_attr = ldap_config['ldap_tenant_id_attr']
       self.dkim_enabled_attr = ldap_config['ldap_dkim_enabled_attr']
       self.dkim_alignment_required_attr = ldap_config['ldap_dkim_alignment_required_attr']
+      self.connect()
     except Exception as e:
       raise ExOTAPolicyBackendException(
         "An error occured while initializing LDAP backend: " + traceback.format_exc()
       ) from e
+  
+  def connect(self):
+    try:
+      set_config_parameter("RESTARTABLE_SLEEPTIME", 1)
+      set_config_parameter("RESTARTABLE_TRIES", 2)
+      set_config_parameter('DEFAULT_SERVER_ENCODING', 'utf-8')
+      set_config_parameter('DEFAULT_CLIENT_ENCODING', 'utf-8')
+      self.conn = Connection(
+        Server(self.ldap_server_uri, get_info=NONE),
+        self.ldap_binddn,
+        self.ldap_bindpw,
+        auto_bind = True, 
+        raise_exceptions = True,
+        client_strategy = 'RESTARTABLE',
+        receive_timeout = self.ldap_receive_timeout
+      )
+    except LDAPException as e:
+      raise ExOTAPolicyBackendException(
+        "An error occured while connecting to LDAP backend: " + traceback.format_exc()
+      ) from e
+
+  def sanitize_connection(self):
+    pass
 
   def get(self, from_domain):
-    self.query = self.query.replace('%d', from_domain)
+    self.sanitize_connection()
+    log_debug("LDAP FROM_DOMAIN: {0}".format(from_domain))
+    ldap_query = self.query_template
+    ldap_query = ldap_query.replace('%d', from_domain)
+    log_debug("LDAP-QUERY-Template: {0}".format(self.query_template))
+    log_debug("LDAP-QUERY: {0}".format(ldap_query))
     try:
       self.conn.search(
         self.search_base,
-        self.query,
+        ldap_query,
         attributes=[
           self.tenant_id_attr,
           self.dkim_enabled_attr,
           self.dkim_alignment_required_attr
         ]
       )
+      log_debug("LDAP ENTRIES: {0}".format(self.conn.entries))
       if len(self.conn.entries) == 1:
         entry = self.conn.entries[0]
         policy_dict = {}
