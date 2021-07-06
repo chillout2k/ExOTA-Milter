@@ -64,7 +64,6 @@ g_milter_ldap_dkim_enabled_attr = 'exotaMilterDkimEnabled'
 # ENV[MILTER_LDAP_DKIM_ALIGNMENT_REQIRED_ATTR]
 g_milter_ldap_dkim_alignment_required_attr = 'exotaMilterDkimAlignmentRequired'
 
-
 # Another globals
 g_policy_backend = None
 g_re_domain = re.compile(r'^.*@(\S+)$', re.IGNORECASE)
@@ -75,10 +74,11 @@ class ExOTAMilter(Milter.Base):
   def __init__(self):
     self.x509_client_valid = False
     self.client_ip = None
+    self.client_port = None
     self.reset()
+    log_debug(self.mconn_id + " INIT: {0}".format(self.__dict__))
 
   def reset(self):
-    self.conn_reused = False
     self.hdr_from = None
     self.hdr_from_domain = None
     self.hdr_resent_from = None
@@ -95,7 +95,7 @@ class ExOTAMilter(Milter.Base):
     self.mconn_id = g_milter_name + ': ' + ''.join(
       random.choice(string.ascii_lowercase + string.digits) for _ in range(8)
     )
-    log_debug(self.mconn_id + " reset()")
+    log_debug(self.mconn_id + " reset(): {0}".format(self.__dict__))
 
   def smfir_reject(self, **kwargs):
     message = g_milter_reject_message
@@ -108,6 +108,7 @@ class ExOTAMilter(Milter.Base):
     log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
       ": milter_action=reject message={0}".format(message)
     )
+    self.reset()
     self.setreply('550','5.7.1', message)
     return Milter.REJECT
   
@@ -122,6 +123,7 @@ class ExOTAMilter(Milter.Base):
     log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
       ": milter_action=tempfail message={0}".format(message)
     )
+    self.reset()
     self.setreply('450','4.7.1', message)
     return Milter.TEMPFAIL
   
@@ -140,20 +142,18 @@ class ExOTAMilter(Milter.Base):
     return self.smfir_continue()
 
   def connect(self, IPname, family, hostaddr):
+    self.reset()
     self.client_ip = hostaddr[0]
+    self.client_port = hostaddr[1]
+    log_debug(self.mconn_id + "/CONNECT client_ip={0} client_port={1}".format(
+      self.client_ip, self.client_port
+    ))
     return self.smfir_continue()
 
   # Mandatory callback
   def envfrom(self, mailfrom, *str):
     log_debug(self.mconn_id + "/FROM 5321.from={0}".format(mailfrom))
-    # Instance member values remain within reused SMTP-connections!
-    if self.conn_reused:
-      # Milter connection reused!
-      log_debug(self.mconn_id + "/FROM connection reused!")
-      self.reset()
-    else:
-      self.conn_reused = True
-      log_debug(self.mconn_id + "/FROM client_ip={0}".format(self.client_ip))
+    log_debug(self.mconn_id + "/FROM {0}".format(self.__dict__))
     return self.smfir_continue()
 
   # Mandatory callback
@@ -489,6 +489,7 @@ class ExOTAMilter(Milter.Base):
       log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: Tenant successfully authorized"
       )
+    self.reset()
     return self.smfir_continue()
 
   def abort(self):
@@ -499,7 +500,7 @@ class ExOTAMilter(Milter.Base):
   def close(self):
     # Always called, even when abort is called.
     # Clean up any external resources here.
-    log_debug(self.mconn_id + "/CLOSE")
+    log_debug(self.mconn_id + "/CLOSE {0}".format(self.__dict__))
     return self.smfir_continue()
 
 if __name__ == "__main__":
