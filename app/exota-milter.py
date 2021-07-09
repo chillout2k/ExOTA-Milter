@@ -86,6 +86,7 @@ class ExOTAMilter(Milter.Base):
     self.forwarded = False
     self.hdr_tenant_id = None
     self.hdr_tenant_id_count = 0
+    self.hdr_different_tenant_id = False
     self.x509_whitelisted = False
     self.dkim_valid = False
     self.passed_dkim_results = []
@@ -202,11 +203,18 @@ class ExOTAMilter(Milter.Base):
 
     # Parse non-standardized X-MS-Exchange-CrossTenant-Id header
     elif(name.lower() == "X-MS-Exchange-CrossTenant-Id".lower()):
-      self.hdr_tenant_id_count += 1
-      self.hdr_tenant_id = hval.lower()
       log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/HDR: Tenant-ID: {0}".format(self.hdr_tenant_id)
-      )
+          "/HDR: Tenant-ID: {0}".format(self.hdr_tenant_id)
+        )
+      if self.hdr_tenant_id_count > 0:
+        if not self.hdr_tenant_id == hval.lower():
+          self.hdr_different_tenant_id = True
+          log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
+            "/HDR: Different Tenant-IDs found!"
+          )
+      else:
+        self.hdr_tenant_id_count += 1
+        self.hdr_tenant_id = hval.lower()
 
     # Parse RFC-7601 Authentication-Results header
     elif(name.lower() == "Authentication-Results".lower()):
@@ -290,6 +298,17 @@ class ExOTAMilter(Milter.Base):
       return self.smfir_reject(
         queue_id = self.getsymval('i'),
         reason = '5322.from header missing'
+      )
+
+    if self.hdr_different_tenant_id == True:
+      log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/EOM: Multiple/different tenant-ID headers found for {0} - action=reject".format(
+          self.hdr_from_domain
+        )
+      )
+      return self.smfir_reject(
+        queue_id = self.getsymval('i'),
+        reason = 'Multiple/different tenant-IDs headers found!'
       )
 
     # Get policy for 5322.from_domain
@@ -384,13 +403,6 @@ class ExOTAMilter(Milter.Base):
         queue_id = self.getsymval('i'),
         reason = 'Tenant-ID is missing!'
       )
-    if self.hdr_tenant_id_count > 1:
-      log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: More than one tenant-IDs for {0} found - action=reject".format(
-          self.hdr_from_domain
-        )
-      )
-      return self.smfir_reject(queue_id=self.getsymval('i'))
     if self.hdr_tenant_id == policy.get_tenant_id():
       log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/EOM: tenant_id={0} status=match".format(self.hdr_tenant_id)
