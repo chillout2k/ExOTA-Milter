@@ -204,7 +204,7 @@ class ExOTAMilter(Milter.Base):
     # Parse non-standardized X-MS-Exchange-CrossTenant-Id header
     elif(name.lower() == "X-MS-Exchange-CrossTenant-Id".lower()):
       log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
-          "/HDR: Tenant-ID: {0}".format(self.hdr_tenant_id)
+          "/HDR: Tenant-ID: {0}".format(hval.lower())
         )
       if self.hdr_tenant_id_count > 0:
         if not self.hdr_tenant_id == hval.lower():
