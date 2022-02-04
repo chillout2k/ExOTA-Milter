@@ -229,7 +229,7 @@ class ExOTAMilter(Milter.Base):
               if ar_result.method == 'dkim':
                 if ar_result.result == 'pass':
                   self.passed_dkim_results.append({
-                    "sdid": ar_result.header_d
+                    "sdid": ar_result.header_d.lower()
                   })
                   log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
                     "/HDR: DKIM passed SDID {0}".format(ar_result.header_d)
