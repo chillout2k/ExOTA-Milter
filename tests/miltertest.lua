@@ -57,7 +57,7 @@ end
 if mt.header(conn, "Authentication-RESULTS", "my-auth-serv-id;\n  dkim=pass header.d=yad.onmicrosoft.comx header.s=selector1-yad-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
   error "mt.header(Subject) failed"  
 end
-if mt.header(conn, "Authentication-RESULTS", "my-auth-serv-id;\n  dkim=pass header.d=chillout2k.de header.s=selector1-yad-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
+if mt.header(conn, "Authentication-RESULTS", "my-auth-serv-id;\n  dkim=pass header.d=Chillout2k.de header.s=selector1-yad-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
   error "mt.header(Subject) failed"  
 end
 if mt.header(conn, "Authentication-Results", "my-auth-serv-id;\n  dkim=fail header.d=yad.onmicrosoft.com header.s=selector2-asdf header.b=mmmjFpv8") ~= nil then
