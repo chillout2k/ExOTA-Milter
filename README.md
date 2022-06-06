@@ -2,7 +2,11 @@
 ![OSSAR](https://github.com/chillout2k/ExOTA-Milter/workflows/OSSAR/badge.svg?branch=master)
 
 
-# ExOTA-Milter - Exchange Online Tenant Authorisation Milter (Mail-Filter) 
+# ExOTA-Milter - Exchange Online Tenant Authorisation Milter (Mail-Filter)
+
+![ExOTA-Milter use case](use-case.png)
+
+*Diagram created with: https://app.diagrams.net/*
 
 The **ExOTA-[Milter](https://en.wikipedia.org/wiki/Milter)** application is written in python3 and derives from **[sdgathman´s pymilter](https://github.com/sdgathman/pymilter)**.
 
