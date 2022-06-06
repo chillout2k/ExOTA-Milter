@@ -146,4 +146,4 @@ Take a look [here](OCI/README.md)
 First of all please take a look at how to set up the testing environment, which is described [here](tests/README.md)
 
 # How to install on docker/kubernetes/systemd?
-The installation procedure is documented here [here](INSTALL/README.md)
+The installation procedure is documented [here](INSTALL/README.md)
