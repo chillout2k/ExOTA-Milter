@@ -1,0 +1,22 @@
+version: '2.4'
+services:
+  exota-milter:
+    image: chillout2k/exota-milter-amd64
+    restart: unless-stopped
+    environment:
+      LOG_LEVEL: 'debug'
+      MILTER_SOCKET: 'inet:4321@0.0.0.0'
+      MILTER_POLICY_FILE: '/data/exota-milter-policy.json'
+      MILTER_DKIM_ENABLED: 'True'
+      MILTER_DKIM_ALIGNMENT_REQUIRED: 'True'
+      MILTER_TRUSTED_AUTHSERVID: 'DKIMAuthservID'
+      MILTER_X509_ENABLED: 'True'
+      MILTER_X509_TRUSTED_CN: 'mail.protection.outlook.com'
+      MILTER_X509_IP_WHITELIST: '127.0.0.1,::1'
+      MILTER_ADD_HEADER: 'True'
+      MILTER_AUTHSERVID: 'ThisAuthservID'
+      MILTER_REJECT_MESSAGE: 'CUSTOMIZE THIS! - Security policy violation!!'
+    volumes:
+    - "./data/:/data/:ro"
+    ports:
+    - "127.0.0.1:4321:4321"

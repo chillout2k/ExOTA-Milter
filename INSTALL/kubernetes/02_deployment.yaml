@@ -1,0 +1,82 @@
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  namespace: devel
+  name: exota-milter
+  labels:
+    app: exota-milter
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: exota-milter
+  template:
+    metadata:
+      labels:
+        app: exota-milter
+    spec:
+      # Do not deploy more than one pods per node
+      topologySpreadConstraints:
+      - labelSelector:
+          matchLabels:
+            app: exota-milter
+        maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+      # Pod eviction toleration overrides
+      tolerations:
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 30
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 30
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 10
+      volumes:
+      - name: exota-milter-policy-volume
+        configMap:
+          name: exota-milter-policy-cmap
+          items:
+          - key: exota-milter-policy
+            path: 'exota-milter-policy.json'
+      containers:
+      - name: exota-milter
+        image: chillout2k/exota-milter-amd64
+        imagePullPolicy: Always
+        volumeMounts:
+        - mountPath: /data
+          name: exota-milter-policy-volume
+        startupProbe:
+          exec:
+            command: ["nc", "-v", "-w1", "127.0.0.1", "4321"]
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        env:
+        - name: LOG_LEVEL
+          value: 'info'
+        - name: MILTER_SOCKET
+          value: 'inet:4321@127.0.0.1'
+        - name: MILTER_POLICY_FILE
+          value: '/data/exota-milter-policy.json'
+        - name: MILTER_DKIM_ENABLED
+          value: 'True'
+        - name: MILTER_DKIM_ALIGNMENT_REQUIRED
+          value: 'True'
+        - name: MILTER_TRUSTED_AUTHSERVID
+          value: 'DKIMAuthservID'
+        - name: MILTER_X509_ENABLED
+          value: 'True'
+        - name: MILTER_X509_TRUSTED_CN
+          value: 'mail.protection.outlook.com'
+        - name: MILTER_X509_IP_WHITELIST
+          value: '127.0.0.1,::1'
+        - name: MILTER_ADD_HEADER
+          value: 'True'
+        - name: MILTER_AUTHSERVID
+          value: 'some-auth-serv-id'
+        - name: MILTER_REJECT_MESSAGE
+          value: 'Security policy violation!!'
