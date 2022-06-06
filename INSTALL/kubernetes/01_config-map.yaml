@@ -1,0 +1,15 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: exota-milter-policy-cmap
+  namespace: devel
+data:
+  exota-milter-policy: |
+    {
+      "example.com": {
+        "tenant_id": "abcd1234-18c5-45e8-88de-987654321cba",
+        "dkim_enabled": true,
+        "dkim_alignment_required": true
+      }
+    }
