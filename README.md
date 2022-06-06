@@ -6,6 +6,8 @@
 
 ![ExOTA-Milter use case](use-case.png)
 
+*Diagram created with: https://app.diagrams.net/*
+
 The **ExOTA-[Milter](https://en.wikipedia.org/wiki/Milter)** application is written in python3 and derives from **[sdgathman´s pymilter](https://github.com/sdgathman/pymilter)**.
 
 # Abstract/problem/motivation
