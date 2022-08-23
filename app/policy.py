@@ -4,7 +4,8 @@ import re
 from uuid import UUID
 from ldap3.core.exceptions import LDAPException
 from ldap3 import (
-  Server, Connection, NONE, set_config_parameter
+  Server, Connection, NONE, set_config_parameter,
+  SAFE_RESTARTABLE
 )
 from logger import log_debug
 
@@ -166,7 +167,7 @@ class ExOTAPolicyBackendLDAP(ExOTAPolicyBackend):
         self.ldap_bindpw,
         auto_bind = True, 
         raise_exceptions = True,
-        client_strategy = 'RESTARTABLE',
+        client_strategy = 'SAFE_RESTARTABLE',
         receive_timeout = self.ldap_receive_timeout
       )
     except LDAPException as e:
@@ -185,34 +186,35 @@ class ExOTAPolicyBackendLDAP(ExOTAPolicyBackend):
     log_debug("LDAP-QUERY-Template: {0}".format(self.query_template))
     log_debug("LDAP-QUERY: {0}".format(ldap_query))
     try:
-      self.conn.search(
+      _, _, response, _ = self.conn.search(
         self.search_base,
         ldap_query,
-        attributes=[
+        attributes = [
           self.tenant_id_attr,
           self.dkim_enabled_attr,
           self.dkim_alignment_required_attr
         ]
       )
-      log_debug("LDAP ENTRIES: {0}".format(self.conn.entries))
-      if len(self.conn.entries) == 1:
-        entry = self.conn.entries[0]
+      log_debug("LDAP ENTRY: {0}".format(response))
+      if len(response) == 1:
+        entry = response[0]['attributes']
         policy_dict = {}
         if self.tenant_id_attr in entry:
-          policy_dict['tenant_id'] = entry[self.tenant_id_attr].value
+          policy_dict['tenant_id'] = entry[self.tenant_id_attr][0]
         if self.dkim_enabled_attr in entry:
-          if entry[self.dkim_enabled_attr].value == 'TRUE':
+          if entry[self.dkim_enabled_attr][0] == 'TRUE':
             policy_dict['dkim_enabled'] = True
           else:
             policy_dict['dkim_enabled'] = False
         if self.dkim_alignment_required_attr in entry:
-          if entry[self.dkim_alignment_required_attr].value == 'TRUE':
+          if entry[self.dkim_alignment_required_attr][0] == 'TRUE':
             policy_dict['dkim_alignment_required'] = True
           else:
             policy_dict['dkim_alignment_required'] = False
+        log_debug("POLICY_DICT: {}".format(policy_dict))
         ExOTAPolicy.check_policy(policy_dict)
         return ExOTAPolicy(policy_dict)
-      elif len(self.conn.entries) > 1:
+      elif len(response) > 1:
         raise ExOTAPolicyInvalidException(
           "Multiple policies found for domain={0}!".format(from_domain)
         )
