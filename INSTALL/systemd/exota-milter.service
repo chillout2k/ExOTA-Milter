@@ -3,7 +3,7 @@ Description=ExOTA-Milter
 
 [Service]
 Restart=always
-ExecStart=/usr/loca/sbin/exota-milter.sh
+ExecStart=/usr/local/sbin/exota-milter.sh
 
 [Install]
 WantedBy=multi-user.target

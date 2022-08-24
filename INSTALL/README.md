@@ -82,13 +82,21 @@ Get logs of one of the pods:
 ```
 
 ## systemd <a name="systemd"/>
-If you do not want to run the ExOTA-Milter in a containerized environment but directly as a systemd-unit/-service, first you´ll need to install all necessary python dependencies:
+If you do not want to run the ExOTA-Milter in a containerized environment but directly as a systemd-unit/-service, first you´ll need to install all necessary python and build dependencies. Start with build deps (examples refere to ubuntu/debian):
+```
+sudo apt install --no-install-recommends gcc libpython3-dev libmilter-dev python3-pip
+```
+Now install all python dependencies:
 ```
 ~/src/ExOTA-Milter/INSTALL/systemd# sudo pip3 install -r ../../requirements.txt
 Requirement already satisfied: authres==1.2.0 in /usr/local/lib/python3.8/dist-packages (from -r ../../requirements.txt (line 1)) (1.2.0)
 Requirement already satisfied: pymilter==1.0.4 in /usr/local/lib/python3.8/dist-packages (from -r ../../requirements.txt (line 2)) (1.0.4)
 Requirement already satisfied: ldap3 in /usr/local/lib/python3.8/dist-packages (from -r ../../requirements.txt (line 3)) (2.9.1)
 Requirement already satisfied: pyasn1>=0.4.6 in /usr/local/lib/python3.8/dist-packages (from ldap3->-r ../../requirements.txt (line 3)) (0.4.8)
+```
+At last uninstall all build dependencies, as they are not needed anymore:
+```
+apt purge gcc libpython3-dev libmilter-dev python3-pip
 ```
 Next you should be able to install the ExOTA-Milter as well as the systemd-stuff by running the `install.sh` script:
 ```
