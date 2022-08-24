@@ -308,7 +308,7 @@ class ExOTAMilter(Milter.Base):
       )
       return self.smfir_reject(
         queue_id = self.getsymval('i'),
-        reason = 'Multiple/different tenant-IDs headers found!'
+        reason = 'Multiple/different tenant-ID headers found!'
       )
 
     # Get policy for 5322.from_domain
