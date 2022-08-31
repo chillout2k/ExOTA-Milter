@@ -25,6 +25,8 @@ g_milter_socket = '/socket/' + g_milter_name
 g_milter_reject_message = 'Security policy violation!'
 # ENV[MILTER_TMPFAIL_MESSAGE]
 g_milter_tmpfail_message = 'Service temporarily not available! Please try again later.'
+# ENV[MILTER_TENANT_ID_REQUIRED]
+g_milter_tenant_id_required = False
 # ENV[MILTER_DKIM_ENABLED]
 g_milter_dkim_enabled = False
 # ENV[MILTER_DKIM_ALIGNMENT_REQUIRED]
@@ -200,21 +202,22 @@ class ExOTAMilter(Milter.Base):
             self.hdr_resent_from, self.hdr_resent_from_domain
           )
         )
-
+    
     # Parse non-standardized X-MS-Exchange-CrossTenant-Id header
     elif(name.lower() == "X-MS-Exchange-CrossTenant-Id".lower()):
-      log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
-          "/HDR: Tenant-ID: {0}".format(hval.lower())
-        )
-      if self.hdr_tenant_id_count > 0:
-        if not self.hdr_tenant_id == hval.lower():
-          self.hdr_different_tenant_id = True
-          log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
-            "/HDR: Different Tenant-IDs found!"
+      if g_milter_tenant_id_required == True:
+        log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+            "/HDR: Tenant-ID: {0}".format(hval.lower())
           )
-      else:
-        self.hdr_tenant_id_count += 1
-        self.hdr_tenant_id = hval.lower()
+        if self.hdr_tenant_id_count > 0:
+          if not self.hdr_tenant_id == hval.lower():
+            self.hdr_different_tenant_id = True
+            log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
+              "/HDR: Different Tenant-IDs found!"
+            )
+        else:
+          self.hdr_tenant_id_count += 1
+          self.hdr_tenant_id = hval.lower()
 
     # Parse RFC-7601 Authentication-Results header
     elif(name.lower() == "Authentication-Results".lower()):
@@ -300,16 +303,17 @@ class ExOTAMilter(Milter.Base):
         reason = '5322.from header missing'
       )
 
-    if self.hdr_different_tenant_id == True:
-      log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: Multiple/different tenant-ID headers found for {0} - action=reject".format(
-          self.hdr_from_domain
+    if g_milter_tenant_id_required == True:
+      if self.hdr_different_tenant_id == True:
+        log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
+          "/EOM: Multiple/different tenant-ID headers found for {0} - action=reject".format(
+            self.hdr_from_domain
+          )
         )
-      )
-      return self.smfir_reject(
-        queue_id = self.getsymval('i'),
-        reason = 'Multiple/different tenant-ID headers found!'
-      )
+        return self.smfir_reject(
+          queue_id = self.getsymval('i'),
+          reason = 'Multiple/different tenant-ID headers found!'
+        )
 
     # Get policy for 5322.from_domain
     policy = None
@@ -395,28 +399,29 @@ class ExOTAMilter(Milter.Base):
           reason = "No policy for 5322.from_domain {0}".format(self.hdr_from_domain)
         )
 
-    if self.hdr_tenant_id is None:
-      log_error(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: exception: could not determine X-MS-Exchange-CrossTenant-Id - action=reject"
-      )
-      return self.smfir_reject(
-        queue_id = self.getsymval('i'),
-        reason = 'Tenant-ID is missing!'
-      )
-    if self.hdr_tenant_id == policy.get_tenant_id():
-      log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: tenant_id={0} status=match".format(self.hdr_tenant_id)
-      )
-    else:
-      log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
-        "/EOM: tenant_id={0} status=no_match - action=reject".format(
-          self.hdr_tenant_id
+    if g_milter_tenant_id_required == True:
+      if self.hdr_tenant_id is None:
+        log_error(self.mconn_id + "/" + str(self.getsymval('i')) +
+          "/EOM: exception: could not determine X-MS-Exchange-CrossTenant-Id - action=reject"
         )
-      )
-      return self.smfir_reject(
-        queue_id = self.getsymval('i'),
-        reason = 'No policy match for tenant-id'
-      )
+        return self.smfir_reject(
+          queue_id = self.getsymval('i'),
+          reason = 'Tenant-ID is missing!'
+        )
+      if self.hdr_tenant_id == policy.get_tenant_id():
+        log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
+          "/EOM: tenant_id={0} status=match".format(self.hdr_tenant_id)
+        )
+      else:
+        log_info(self.mconn_id + "/" + str(self.getsymval('i')) +
+          "/EOM: tenant_id={0} status=no_match - action=reject".format(
+            self.hdr_tenant_id
+          )
+        )
+        return self.smfir_reject(
+          queue_id = self.getsymval('i'),
+          reason = 'No policy match for tenant-id'
+        )
 
     if g_milter_dkim_enabled and policy.is_dkim_enabled():
       log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
@@ -529,6 +534,9 @@ if __name__ == "__main__":
   if 'MILTER_TMPFAIL_MESSAGE' in os.environ:
     g_milter_tmpfail_message = os.environ['MILTER_TMPFAIL_MESSAGE']
   log_info("ENV[MILTER_TMPFAIL_MESSAGE]: {0}".format(g_milter_tmpfail_message))
+  if 'MILTER_TENANT_ID_REQUIRED' in os.environ:
+    g_milter_tenant_id_required = True
+  log_info("ENV[MILTER_TENANT_ID_REQUIRED]: {0}".format(g_milter_tenant_id_required))
   if 'MILTER_DKIM_ENABLED' in os.environ:
     g_milter_dkim_enabled = True
     if 'MILTER_TRUSTED_AUTHSERVID' in os.environ:
