@@ -99,8 +99,8 @@ By the way, the global setting `ENV[MILTER_DKIM_ALIGNMENT_REQUIRED]` can be over
 }
 ```
 
-## X-MS-Exchange-CrossTenant-Id header (policy binding)
-Further each Microsoft Exchange-Online tenant has a unique tenant-ID in form of a UUID ([RFC 4122](https://tools.ietf.org/html/rfc4122)). **ExOTA-Milter** extracts the tenant-ID from the *X-MS-Exchange-CrossTenant-Id* email header and uses it as a *mandatory* authentication factor.
+## X-MS-Exchange-CrossTenant-Id header (OPTIONAL!)
+Further each Microsoft Exchange-Online tenant has a unique tenant-ID in form of a UUID ([RFC 4122](https://tools.ietf.org/html/rfc4122)). **ExOTA-Milter** extracts the tenant-ID from the *X-MS-Exchange-CrossTenant-Id* email header and uses it as a *mandatory* authentication factor. Since September 2022 Microsoft did not set this header  anymore reliably.
 ```
 [...]
 X-MS-Exchange-CrossTenant-Id: <UUID-of-tenant>
@@ -125,17 +125,18 @@ Finally it´s the combination of all of the above discussed aspects which may re
 * matching for client certificate´s CN (ExOTA-Milter)
 * verification of DKIM signatures providing *Authentication-Results* header (another milter, e.g. OpenDKIM)
 * consideration of DKIM verification results per sender domain (ExOTA-Milter)
-* matching for tenant-id provided in *X-MS-Exchange-CrossTenant-Id* header (ExOTA-Milter)
+* *OPTIONAL* matching for tenant-id provided in *X-MS-Exchange-CrossTenant-Id* header (ExOTA-Milter)
 
-![Activity policy](http://www.plantuml.com/plantuml/png/5SKn3W8W30NGg-W1f8cZcuEZSN4tM8aq5ahAhyhjZMzvM-ciyIZXkgd0c0SYpv_q5DIunopErb4w4biZhg9gWVsBJj_BzRWxYw8ujJp_POQy1UisJ8LN6j7q1m00)
+![Activity policy](http://www.plantuml.com/plantuml/png/bPLHJzi-5CNVyoaERqKY_FzZuc7fmyYI8BhHTae3GffGPUBRriArkzXXyEsNrWsrIa3T8xw-zvppezUvC9PLjbxAm0eh2Tdpk8Z3eP2MAXWgwqhO5woq5EKBPbB_GR3f2A9X4QFKIb5fYVSH1D5LcaT8j9JDaL1pC2bHaQGdfYmMn3XLfXyeRGcIPZR2PQMN9uXhko1bHSciq2hCoTJIcXFSXSD9c3sN2wRc52QLDgOWrSmA1xnLowdKSoNCMiwGQXJ0zP89vUkWO8-aC6lKa5ycvv_FpaxNqbjFO8h_fwlNKcE06X7lnkcszkcq6ItH8_L4Kg_e6C9WD2vUKnurlhBnCCArrezhJ_MgPISK7bZP-E2-DNnZXZYqUbNVk7GPWa3CqFkvPQzhnRyUOyqAlHSonm6mhhl_LOJdy_-_e9IYyOvaX791vSO2AVOWwKqh4ErCxZNtDtNFPJQw_JKSN1TPFhrhRawB_6PIPEaq6Tq7WFDnkJO8MzN64jyR-5QSf27qb7P_0L6UVS-ImYa3nkgLkwUuc0N-_TsPdpxzCHWUaDa3kc3ciAvzLct4xj_jxeSEl4-n1HZV55UJBByTf0va1qfdCix3xU0kUpwT3fuUKPyfqC6GIJ5NIrBs42xTHCFTZ0zRWIXfDSJCjPgcazcw8WZZl13VXV1nEhkJT91YsO02_QwPXDNmDsdgDkae07p30-E5xRBNXRKJRGTU7t7tdBRULVLhVkNmLR3RHp9jtxT_UWhQTi4XrFRnwdSl-KwfdNZ0GZltJld3KDw9DymDSZUYd9RwgVtIt8Nks_NnMgvJhAhD2zyFV6gCy-sTVJnHp7aZSfX0FtXlvUCqdLvbSPhbzxjiRP9aF2e6evki7spoNJJ7zLB-1G00)
 
 # How about using LDAP as policy backend?
 For small setups, with not so many domains, the JSON-file policy backend (default) may be sufficient. If you´re an email service provider (ESP) maintaining a lot of customer domains in a LDAP server, you may want to use the LDAP backend instead. Details regarding the LDAP backend can be found [in the LDAP readme](LDAP/README.md).
 
 # How about a docker/OCI image?
 ## Using prebuilt images from [dockerhub](https://hub.docker.com/)
-* AMD64: https://hub.docker.com/r/chillout2k/exota-milter-amd64
-* ARM32v6: https://hub.docker.com/r/chillout2k/exota-milter-arm32v6
+* **OBSOLETE!** ~~AMD64: https://hub.docker.com/r/chillout2k/exota-milter-amd64~~
+* **OBSOLETE!** ~~ARM32v6: https://hub.docker.com/r/chillout2k/exota-milter-arm32v6~~
+* **NEW multi-architecture image:** https://hub.docker.com/repository/docker/chillout2k/exota-milter
 
 The images are built on a weekly basis. The corresponding *Dockerfile* is located [here](OCI/Dockerfile)
 

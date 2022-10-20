@@ -50,11 +50,14 @@ if (Policy found?) then (yes)
     endif
   else (no)
   endif
-  :Looking up tenant-id in policy;
-  if (Found trusted tenant-ID?) then (no)
-    :REJECT;
-    stop
-  else (yes)
+  if (Milter: tenant-ID header checking enabled?) then (yes)
+    :Looking up tenant-id in policy;
+    if (Found trusted tenant-ID?) then (no)
+      :REJECT;
+      stop
+    else (yes)
+    endif
+  else (no)
   endif
 else (no)
   :REJECT;

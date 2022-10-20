@@ -1,7 +1,7 @@
 version: '2.4'
 services:
   exota-milter:
-    image: chillout2k/exota-milter-amd64
+    image: chillout2k/exota-milter
     restart: unless-stopped
     environment:
       LOG_LEVEL: 'debug'

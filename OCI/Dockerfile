@@ -6,7 +6,8 @@ LABEL git_repo="https://github.com/chillout2k/exota-milter"
 ADD ./requirements.txt /requirements.txt
 
 RUN apk update \
-  && apk add python3 python3-dev py3-pip gcc libc-dev libmilter-dev \
+  && apk add --no-cache python3 python3-dev py3-pip \
+      gcc libc-dev libmilter-dev \
   && pip3 install -r requirements.txt \
   && apk del gcc libc-dev libmilter-dev python3-dev py3-pip \
   && apk add libmilter \
