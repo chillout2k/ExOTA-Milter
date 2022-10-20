@@ -1,5 +1,5 @@
-ARG ARCH
-FROM $ARCH/alpine
+ARG PARENT_IMAGE=alpine:3.16
+FROM ${PARENT_IMAGE}
 LABEL maintainer="Dominik Chilla <dominik@zwackl.de>"
 LABEL git_repo="https://github.com/chillout2k/exota-milter"
 
