@@ -45,7 +45,7 @@ spec:
             path: 'exota-milter-policy.json'
       containers:
       - name: exota-milter
-        image: chillout2k/exota-milter-amd64
+        image: chillout2k/exota-milter
         imagePullPolicy: Always
         volumeMounts:
         - mountPath: /data
