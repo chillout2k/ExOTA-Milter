@@ -30,7 +30,7 @@ if mt.getreply(conn) ~= SMFIR_CONTINUE then
 end
 
 -- HEADER
-if mt.header(conn, "fRoM", '"Blah Blubb" <O365ConnectorValidation@chillout2kx.de>') ~= nil then
+if mt.header(conn, "fRoM", '"Blah Blubb" <O365ConnectorValidation@staging.zwacklx.de>') ~= nil then
   error "mt.header(From) failed"  
 end
 if mt.header(conn, "x-mS-EXCHANGE-crosstenant-id", "1234abcd-18c5-45e8-88de-123456789abc") ~= nil then
