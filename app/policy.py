@@ -25,7 +25,10 @@ class ExOTAPolicyBackendException(Exception):
 
 class ExOTAPolicy():
   def __init__(self, policy_dict):
-    self.tenant_id = policy_dict['tenant_id']
+    if 'tenant_id' in policy_dict:
+      self.tenant_id = policy_dict['tenant_id']
+    else:
+      self.tenant_id = ''
     if 'dkim_enabled' in policy_dict:
       self.dkim_enabled = policy_dict['dkim_enabled']
     else:
@@ -50,18 +53,11 @@ class ExOTAPolicy():
 
   @staticmethod
   def check_policy(policy_dict):
-    if 'tenant_id' not in policy_dict:
-      raise ExOTAPolicyInvalidException(
-        "Policy must have a 'tenant_id' key!"
-      )
-    if policy_dict['tenant_id'] is None:
-      raise ExOTAPolicyInvalidException(
-        "'tenant_id' needs a value!"
-      )
     for policy_key in policy_dict:
       if policy_key == 'tenant_id':
         try:
-          UUID(policy_dict[policy_key])
+          if policy_dict[policy_key] != '':
+            UUID(policy_dict[policy_key])
         except ValueError as e:
           raise ExOTAPolicyInvalidException(
             "Invalid 'tenant_id': {0}".format(str(e))
@@ -200,7 +196,10 @@ class ExOTAPolicyBackendLDAP(ExOTAPolicyBackend):
         entry = response[0]['attributes']
         policy_dict = {}
         if self.tenant_id_attr in entry:
-          policy_dict['tenant_id'] = entry[self.tenant_id_attr][0]
+          if len(entry[self.tenant_id_attr]) > 0:
+            policy_dict['tenant_id'] = entry[self.tenant_id_attr][0]
+          else:
+            policy_dict['tenant_id'] = ''
         if self.dkim_enabled_attr in entry:
           if entry[self.dkim_enabled_attr][0] == 'TRUE':
             policy_dict['dkim_enabled'] = True

@@ -7,5 +7,10 @@
   "example.com": {
     "tenant_id": "abcd1234-18c5-45e8-88de-987654321cba",
     "dkim_enabled": false
+  },
+  "staging.zwackl.de": {
+    "tenant_id": "",
+    "dkim_enabled": true,
+    "dkim_alignment_required": true
   }
 }
