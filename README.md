@@ -136,7 +136,7 @@ For small setups, with not so many domains, the JSON-file policy backend (defaul
 ## Using prebuilt images from [dockerhub](https://hub.docker.com/)
 * **OBSOLETE!** ~~AMD64: https://hub.docker.com/r/chillout2k/exota-milter-amd64~~
 * **OBSOLETE!** ~~ARM32v6: https://hub.docker.com/r/chillout2k/exota-milter-arm32v6~~
-* **NEW multi-architecture image:** https://hub.docker.com/repository/docker/chillout2k/exota-milter
+* **NEW multi-architecture image:** https://hub.docker.com/r/chillout2k/exota-milter
 
 The images are built on a weekly basis. The corresponding *Dockerfile* is located [here](OCI/Dockerfile)
 
