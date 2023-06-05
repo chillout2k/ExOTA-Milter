@@ -35,13 +35,13 @@ if mt.header(conn, "fRoM", '"Blah Blubb" <O365ConnectorValidation@staging.zwackl
   error "mt.header(From) failed"  
 end
 if mt.header(conn, "x-mS-EXCHANGE-crosstenant-id", "1234abcd-18c5-45e8-88de-123456789abcXXX") ~= nil then
-  error "mt.header(Subject) failed"  
+  error "mt.header(x-mS-EXCHANGE-crosstenant-id) failed"  
 end
 if mt.header(conn, "Authentication-RESULTS", "my-auth-serv-id;\n  dkim=fail header.d=staging.zwackl.de header.s=selector1-yad-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
-  error "mt.header(Subject) failed"  
+  error "mt.header(Authentication-RESULTS) failed"  
 end
 if mt.header(conn, "X-ExOTA-Authentication-Results", "my-auth-serv-id;\n exota=pass") ~= nil then
-  error "mt.header(Subject) failed"  
+  error "mt.header(X-ExOTA-Authentication-Results) failed"  
 end
 
 -- EOM
@@ -85,10 +85,10 @@ if mt.header(conn, "fRoM", '"Blah Blubb" <O365ConnectorValidation@staging.zwackl
   error "mt.header(From) failed"  
 end
 if mt.header(conn, "x-mS-EXCHANGE-crosstenant-id", "1234abcd-18c5-45e8-88de-123456789abc") ~= nil then
-  error "mt.header(Subject) failed"  
+  error "mt.header(x-mS-EXCHANGE-crosstenant-id) failed"  
 end
 if mt.header(conn, "Authentication-RESULTS", "my-auth-serv-id;\n  dkim=pass header.d=staging.zwackl.de header.s=selector1-yad-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
-  error "mt.header(Subject) failed"  
+  error "mt.header(Authentication-RESULTS) failed"  
 end
 
 -- EOM
@@ -131,13 +131,13 @@ if mt.header(conn, "fRoM", '"Blah Blubb" <O365ConnectorValidation@staging.zwackl
   error "mt.header(From) failed"  
 end
 if mt.header(conn, "x-mS-EXCHANGE-crosstenant-id", "1234abcd-18c5-45e8-88de-123456789abcXXX") ~= nil then
-  error "mt.header(Subject) failed"  
+  error "mt.header(x-mS-EXCHANGE-crosstenant-id) failed"  
 end
 if mt.header(conn, "Authentication-RESULTS", "my-auth-serv-id;\n  dkim=fail header.d=staging.zwackl.de header.s=selector1-yad-onmicrosoft-com header.b=mmmjFpv8") ~= nil then
-  error "mt.header(Subject) failed"  
+  error "mt.header(Authentication-RESULTS) failed"  
 end
 if mt.header(conn, "X-ExOTA-Authentication-Results", "my-auth-serv-id;\n exota=pass") ~= nil then
-  error "mt.header(Subject) failed"  
+  error "mt.header(X-ExOTA-Authentication-Results) failed"  
 end
 
 -- EOM

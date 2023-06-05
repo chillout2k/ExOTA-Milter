@@ -148,3 +148,32 @@ First of all please take a look at how to set up the testing environment, which 
 
 # How to install on docker/kubernetes/systemd?
 The installation procedure is documented [here](INSTALL/README.md)
+
+# How to *configure* the ExOTA-Milter?
+
+|ENV variable|type|default|description|
+|---|---|---|---|
+|MILTER_NAME|`string`|`exota-milter`|Name of the milter instance. Base for socket path. Name appears in logs |
+|MILTER_SOCKET|`string`|`/socket/<ENV[MITLER_NAME]>`|Defines the filesystem path of milter socket. The milter can be also exposed as a tcp-socket like `inet:4321@127.0.0.1`|
+|MILTER_REJECT_MESSAGE|`string`|`Security policy violation!`|Milter reject (SMTP 5xx code) message presented to the calling MTA|
+|MILTER_TMPFAIL_MESSAGE|`string`|`Service temporarily not available! Please try again later.`|Milter temporary fail (SMTP 4xx code) message presentetd to the calling MTA.|
+|MILTER_TENANT_ID_REQUIRED|`bool`|`false`|Controls the requirement of the presence of the unofficial `X-MS-Exchange-CrossTenant-Id` header. Used as additional authentication factor.|
+|MILTER_DKIM_ENABLED|`bool`|`false`|Enables/disables the checking of DKIM authentication results. Used as additional but strong authentication factor.|
+|MILTER_DKIM_ALIGNMENT_REQUIRED|`bool`|`false`|Enables/disables the alighment checks of DKIM SDID with RFC-5322.from_domain. Requires ENV[MILTER_DKIM_ENABLED] = `true`|
+|MILTER_TRUSTED_AUTHSERVID|`string`|`invalid`|Specifies the trusted DKIM-signature validating entity (DKIM-validator - producer of Authentication-Results header). The DKIM-validator must place exactly the same string as configured here into the Authentication-Results header! Requires ENV[MILTER_DKIM_ENABLED] = `true`|
+|MILTER_POLICY_SOURCE|`string`|`file`|Policy source - Possible values `file` (JSON) or `ldap`|
+|MILTER_POLICY_FILE|`string`|`/data/policy.json`|Filesystem path to the (JSON) policy file. Requires ENV[MILTER_POLICY_SOURCE] = `file`|
+|MILTER_X509_ENABLED|`bool`|`false`|Enables/disables the checking of client x509-certificate. Used as additional authentication factor.|
+|MILTER_X509_TRUSTED_CN|`string`|`mail.protection.outlook.com`|FQDN of authenticating client MTA. Requires ENV[MILTER_X509_ENABLED] = `true`|
+|MILTER_X509_IP_WHITELIST|Whitespace or comma separated list of `string`|`127.0.0.1,::1`|List of IP-addresses for which the ExOTA-Milter skips x509 checks. Requires ENV[MILTER_X509_ENABLED] = `true`|
+|MILTER_ADD_HEADER|`bool`|`false`|Controls if the ExOTA-Milter should write an additional `X-ExOTA-Authentication-Results` header with authentication information|
+|MILTER_AUTHSERVID|`string`|empty|Provides ID of authenticating entity within `X-ExOTA-Authentication-Results` header to further validating instances. Required when ENV[MILTER_ADD_HEADER] = `true`|
+|MILTER_LDAP_SERVER_URI|`string`|empty|LDAP-URI of LDAP server holding ExOTA policies. Required when ENV[MILTER_POLICY_SOURCE] = `ldap`|
+|MILTER_LDAP_RECEIVE_TIMEOUT|`int`|5|Timespan the ExOTA-Milter waits for the LDAP server to respond to a request. This NOT the TCP-connect timeout! Requires ENV[MILTER_POLICY_SOURCE] = `ldap`|
+|MILTER_LDAP_BINDDN|`string`|empty|Distinguished name of the binding (authenticating) *user*|
+|MILTER_LDAP_BINDPW|`string`|empty|Password of the binding (authenticating) *user*|
+|MILTER_LDAP_SEARCH_BASE|`string`|empty|Search base-DN on the LDAP server. Required when ENV[MILTER_POLICY_SOURCE] = `ldap`|
+|MILTER_LDAP_QUERY|`string`|empty|LDAP query/filter used to match for a ExOTA-policy. A placeholder must be used to filter for the authenticating domain (`%d`), e.g. `(domain_attribute=%d)`|
+|MILTER_LDAP_TENANT_ID_ATTR|`string`|`exotaMilterTenantId`|Custom LDAP attribute name unless using the ExOTA-milter LDAP schema|
+|MILTER_LDAP_DKIM_ENABLED_ATTR|`string`|`exotaMilterDkimEnabled`|Custom LDAP attribute name unless using the ExOTA-milter LDAP schema|
+|MILTER_LDAP_DKIM_ALIGNMENT_REQIRED_ATTR|`string`|`exotaMilterDkimAlignmentRequired`|Custom LDAP attribute name unless using the ExOTA-milter LDAP schema|
