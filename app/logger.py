@@ -14,10 +14,6 @@ def init_logger():
     elif re.match(r'debug', os.environ['LOG_LEVEL'], re.IGNORECASE):
       log_level = logging.DEBUG
   log_format = '%(asctime)s: %(levelname)s %(message)s '
-  if log_level == logging.DEBUG:
-    # Log thread-ID too. This helps to correlate DEBUG logs,
-    # as Backend-logs do not have a queue_id nor a mconn_id!
-    log_format = '%(asctime)s: %(levelname)s %(thread)d %(message)s '
   logging.basicConfig(
     filename = None, # log to stdout
     format = log_format,
