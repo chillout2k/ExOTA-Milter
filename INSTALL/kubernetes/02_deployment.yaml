@@ -2,7 +2,6 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  namespace: devel
   name: exota-milter
   labels:
     app: exota-milter

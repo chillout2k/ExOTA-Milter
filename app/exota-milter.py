@@ -165,12 +165,11 @@ class ExOTAMilter(Milter.Base):
     return self.smfir_continue()
 
   def header(self, name, hval):
-    log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
-      "/HDR: Header: {0}, Value: {1}".format(name, hval)
-    )
-
     # Parse RFC-5322-From header
-    if(name.lower() == "From".lower()):
+    if(name.lower() == "from"):
+      log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/HDR: Header: {0}, Value: {1}".format(name, hval)
+      )
       hdr_5322_from = email.utils.parseaddr(hval)
       self.hdr_from = hdr_5322_from[1].lower()
       m = re.match(g_re_domain, self.hdr_from)
@@ -187,7 +186,10 @@ class ExOTAMilter(Milter.Base):
       )
     
     # Parse RFC-5322-Resent-From header (Forwarded)
-    if(name.lower() == "Resent-From".lower()):
+    if(name.lower() == "resent-from"):
+      log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/HDR: Header: {0}, Value: {1}".format(name, hval)
+      )
       hdr_5322_resent_from = email.utils.parseaddr(hval)
       self.hdr_resent_from = hdr_5322_resent_from[1].lower()
       m = re.match(g_re_domain, self.hdr_resent_from)
@@ -204,7 +206,10 @@ class ExOTAMilter(Milter.Base):
         )
     
     # Parse non-standardized X-MS-Exchange-CrossTenant-Id header
-    elif(name.lower() == "X-MS-Exchange-CrossTenant-Id".lower()):
+    elif(name.lower() == "x-ms-exchange-crosstenant-id"):
+      log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/HDR: Header: {0}, Value: {1}".format(name, hval)
+      )
       if g_milter_tenant_id_required == True:
         log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
             "/HDR: Tenant-ID: {0}".format(hval.lower())
@@ -219,8 +224,17 @@ class ExOTAMilter(Milter.Base):
           self.hdr_tenant_id_count += 1
           self.hdr_tenant_id = hval.lower()
 
+    # Just for debugging cases
+    elif(name.lower() == "dkim-signature"):
+      log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/HDR: Header: {0}, Value: {1}".format(name, hval)
+      )
+
     # Parse RFC-7601 Authentication-Results header
-    elif(name.lower() == "Authentication-Results".lower()):
+    elif(name.lower() == "authentication-results"):
+      log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/HDR: Header: {0}, Value: {1}".format(name, hval)
+      )
       if g_milter_dkim_enabled == True:
         ar = None
         try:
@@ -248,6 +262,9 @@ class ExOTAMilter(Milter.Base):
           )
     
     elif(name == "X-ExOTA-Authentication-Results"):
+      log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
+        "/HDR: Header: {0}, Value: {1}".format(name, hval)
+      )
       log_debug(self.mconn_id + "/" + str(self.getsymval('i')) +
         "/HDR: Found X-ExOTA-Authentication-Results header. Marking for deletion."
       )

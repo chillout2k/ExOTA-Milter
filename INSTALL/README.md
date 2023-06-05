@@ -32,19 +32,23 @@ docker-compose-exota-milter-1  | 2022-06-06 21:54:04,511: INFO 140529821924168 S
 ```
 
 ## kubernetes <a name="kubernetes"/>
+By default this example installs the Exota-milter workload into the `exota-milter` namespace, which must be created in advance:
 ```
-~/src/ExOTA-Milter/INSTALL/kubernetes$ kubectl apply -f 01_config-map.yaml
+kubectl create ns exota-milter
+
+namespace/exota-milter created
+```
+Deploy stateless workload (type `Deployment`) with `kustomize`:
+```
+~/src/ExOTA-Milter/INSTALL/kubernetes$ kubectl apply -k .
+
 configmap/exota-milter-policy-cmap created
-
-~/src/ExOTA-Milter/INSTALL/kubernetes$ kubectl apply -f 02_deployment.yaml
-deployment.apps/exota-milter created
-
-~/src/ExOTA-Milter/INSTALL/kubernetes$ kubectl apply -f 03_service.yaml
 service/exota-milter created
+deployment.apps/exota-milter created
 ```
-Check status of pods, replica-sets and service
+Check status of pods, replica-sets and cluster internal service:
 ```
-~/src/ExOTA-Milter/INSTALL/kubernetes$ kubectl -n devel get all
+~/src/ExOTA-Milter/INSTALL/kubernetes$ kubectl -n exota-milter get all
 NAME                                READY   STATUS    RESTARTS   AGE
 pod/exota-milter-547dbccd8b-j69mn   1/1     Running   0          64s
 pod/exota-milter-547dbccd8b-7hl6c   1/1     Running   0          64s
@@ -59,9 +63,9 @@ deployment.apps/exota-milter   3/3     3            3           64s
 NAME                                      DESIRED   CURRENT   READY   AGE
 replicaset.apps/exota-milter-547dbccd8b   3         3         3       65s
 ```
-Get logs of one of the pods:
+Get logs of the pods:
 ```
-~/src/ExOTA-Milter/INSTALL/kubernetes$ kubectl -n devel logs exota-milter-547dbccd8b-7hl6c
+~/src/ExOTA-Milter/INSTALL/kubernetes$ kubectl -n exota-milter logs -l app=exota-milter
 2022-06-06 21:57:03,515: INFO Logger initialized
 2022-06-06 21:57:03,515: INFO ENV[MILTER_NAME]: exota-milter
 2022-06-06 21:57:03,515: INFO ENV[MILTER_SOCKET]: inet:4321@127.0.0.1
@@ -79,6 +83,18 @@ Get logs of one of the pods:
 2022-06-06 21:57:03,516: INFO ENV[MILTER_POLICY_FILE]: /data/exota-milter-policy.json
 2022-06-06 21:57:03,516: INFO JSON policy backend initialized
 2022-06-06 21:57:03,516: INFO Startup exota-milter@socket: inet:4321@127.0.0.1
+```
+Remove workload from cluster:
+```
+~/src/ExOTA-Milter/INSTALL/kubernetes$ kubectl delete -k .
+
+configmap "exota-milter-policy-cmap" deleted
+service "exota-milter" deleted
+deployment.apps "exota-milter" deleted
+
+~/src/ExOTA-Milter/INSTALL/kubernetes$ kubectl delete ns exota-milter
+
+namespace "exota-milter" deleted
 ```
 
 ## systemd <a name="systemd"/>

@@ -1,0 +1,7 @@
+namespace: exota-milter
+commonLabels:
+  app: exota-milter
+resources:
+- 01_config-map.yaml
+- 02_deployment.yaml
+- 03_service.yaml
